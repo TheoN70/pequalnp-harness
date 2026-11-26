@@ -11,6 +11,7 @@ This session decides **what** the fleet researches and **which session** does it
 
 ## Current mode: one problem at a time (the owner, 2026-11-26) — read first
 
+**Back to ONE Research session** (the owner, ~19:20 local): the two running now finish their tasks; the first to finish is closed and not replaced. From then on exactly one Research session at a time, always at least one (when it finishes, it is closed and a fresh one starts on the next unit), with cores 0-13.
 **Since 17:40 UTC: two problems** (the owner): two targets, one Research session each, cores 0-6 and 7-13, memory split; the bullets below apply per target. A third target only with the owner.
 All resources go to ONE hard step. Where this section and the rest disagree, this section wins (the parts on sharing the machine between several Research sessions wait for the owner to bring that back).
 - **One target**: propose a step with its reasons (kind, why it can fall, what is known); the owner picks or confirms it. Switching target throws away hours of compute: only the owner does it, or the current one ends (found, refuted, dropped by the owner).

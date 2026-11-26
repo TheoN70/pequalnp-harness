@@ -13,6 +13,7 @@ The owner (GitHub **TheoN70**) runs several Claude sessions that prove Lean 4 st
 
 ## Current mode: one problem at a time (the owner, 2026-11-26) — read first
 
+**Back to ONE Research session** (the owner, ~19:20 local): the two running now finish their tasks; the first to finish is closed and not replaced. From then on exactly one Research session at a time, always at least one (when it finishes, it is closed and a fresh one starts on the next unit), with cores 0-13.
 Since 17:40 UTC (the owner): two targets, each leased to its own Research session (`grab.sh --unit <id> research` / `research2`). Each target as below.
 All resources go to ONE hard step, worked by one Research session (`/pequalnp-hard <id>`). This overrides the fleet
 loop below (lanes, BAIL, pause-watch, memory grants), which stays written for when the owner brings it back.
