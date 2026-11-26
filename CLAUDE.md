@@ -144,7 +144,10 @@ free ¬x0, L-meta-1884), `pm/lsdnf` (monotone DNF on ≤ 20 inputs). Usage line 
 ### SAT
 
 `sat-venv/bin/python` has python-sat (CaDiCaL 1.9.5, Glucose). `pm/satpm.py` exact synthesis (CEGAR) for K6 perfect
-matching; `rect_cover_9294.py` one rectangle-cover instance. **Cirbo** (exact circuit synthesis by SAT, SPbSAT/cirbo
+matching; `rect_cover_9294.py` one rectangle-cover instance. **`circsat.py`**: the shared exact encoding of pequalnp's model (port of
+`LinkN.enc2`, same numbering, so UNSAT certificates replay in `PEqualNP.Library.LRAT`): `cnf` / `solve` / `decode`,
+`--rows` for CEGAR, `--no-not` for AND/OR only (search only); JSON output feeds `circuit2lean.py`; `--demo` checks
+minimum sizes against brute force on all 2- and 3-input functions. **Cirbo** (exact circuit synthesis by SAT, SPbSAT/cirbo
 commit ca19a9f, MIT) lives in `work/tools/cirbo-src` + `work/tools/cirbo-venv` (the wheel does not build; a `.pth`
 points at the source). pequalnp's model: `basis=[Operation.lnot_, Operation.and_, Operation.or_]` (NOT counts as a
 gate). Cirbo's row j puts input 0 on the most significant bit: build its table by applying f to the input vector (as `work/*/cirbo/run.py` does) and no remap is needed; `circuit2lean.py --reverse-inputs` only for a raw pequalnp table.
@@ -215,7 +218,7 @@ A new file in `fleet-tools/` appears by itself; a tool outside it is one line in
 ## Known gaps (Harness backlog, from Orchestrator 2026-11-26)
 
 1. ~~Circuit → Lean file~~ done 2026-11-26: `fleet-tools/circuit2lean.py` (regenerates merged L_meta_1001; maj3 positive test). Left: cofactor splitting of the `decide` past n ~ 12.
-2. One shared, tested SAT encoder of pequalnp's exact circuit model (port of `LinkN.enc2`, now in `work/L-meta-17389/sat/gen.py`).
+2. ~~Shared SAT encoder~~ done 2026-11-26: `fleet-tools/circsat.py` (enc2 port from L-meta-17389, CLI, decoder, brute-force check).
 3. Builder of the `PEqualNP.Library.LRAT` oleans in the shared clone, without breaking lanes.
 4. `pause-watch` counts re-offered judged steps: count only ids absent from `verdicts.txt` and outside `SKIP_CATS`.
 5. Package Cirbo (`make cirbo`, pinned to ca19a9f) and a portable `.mcp.json` (`"command": "lean-lsp-mcp"`).
