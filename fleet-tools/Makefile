@@ -15,6 +15,7 @@ test:
 	sat-venv/bin/python -I circsat.py --demo
 	sat-venv/bin/python -I promise_batch.py --demo
 	./slots --demo
+	python3 -I cube.py --demo
 
 cirbo: $(CIRBO_DIR)/cirbo-venv/.ok-$(CIRBO_REV)
 $(CIRBO_DIR)/cirbo-venv/.ok-$(CIRBO_REV): cirbo-requirements.txt cirbo_check.py
