@@ -65,7 +65,7 @@ Lanes reply to `Master`; tool requests go to `Harness`.
       results.tsv              one line per lease (Master writes it)
 
 Run state, never committed: `master/leases/`, `master/verdicts.txt`, `master/mem-grants`, `master/backup-proofs/`,
-`results.tsv`. C binaries and `fleet-tools/sat-venv/` are rebuilt, not committed.
+`results.tsv`. C binaries and `fleet-tools/sat-venv/` are rebuilt, not committed. Self-checks: `make -C fleet-tools test`.
 
 ## Desk endpoints
 
@@ -173,6 +173,8 @@ library for steps that may import only `PEqualNP.Defs`. Works for n ≤ 4; n = 5
 | `onenot_lift8_gen.py` | same, 8 vertices, lifted from a merged 7-vertex proof of G − v; candidates from `lift_find.py` |
 | `circuit2lean.py <lease.json> <circuit.json or .bench> [--reverse-inputs] [--table HEX] [-o out.lean]` | any `HasCircuitSize n f k` (upper / search) step from a circuit: Cirbo `.bench` or pequalnp-numbered JSON; checks shape, gate count ≤ k, 512 KiB, optional table; proof = circuit + `decide +kernel` over 2^n rows, cut by `--split` into 256-row cofactor lemmas (default; memory
 stays ~4 GB) up to n = 14 (~17 min of the checker's 20). `--demo` self-check |
+| `circuit2lean.py` on `RepSizeAtMost` (one-a-side promise, `Represents`) | detected from the statement: AND/OR circuit on n+m wires (left u = wire u, right v = wire n+v), checked in Python on the n*m promise rows when the graph is `(mask : ℕ).testBit (m * u.val + v.val)`; proof `⟨C0, Monotone2 by cases, size by decide, Represents by decide +kernel⟩` (4x5: ~1 KB, compiles) |
+| `promise_batch.py --one-a-side n m <mask>:<s> ... [-d dir]` | lease-free triage of a promise family (sat-venv python, one core, under capmem): SAT writes `rep_<mask>_<s>.json` for circuit2lean; UNSAT = no AND/OR circuit (triage, not a Lean proof) |
 | `six_cert_gen.py` | "six-input monotone f: every AND/OR/NOT circuit has an AND/OR one no larger" (template L_meta_8645) |
 
 Helpers: `cores.py` (core candidates for delete-a-vertex chains, via `liveg`), `core_mirror.py` (sizes the in-kernel

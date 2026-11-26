@@ -1,4 +1,6 @@
-"""Write the Lean proof of a desk step `HasCircuitSize n f k` from a circuit that computes f.
+"""Write the Lean proof of a desk step `HasCircuitSize n f k` from a circuit that computes f, or of a one-a-side
+promise step `RepSizeAtMost (fun (u : Fin n) (v : Fin m) => ...) s` from an AND/OR circuit on n+m wires (left vertex u
+= wire u, right v = wire n+v; values checked only on the n*m promise rows; detected from the statement, no flag).
 
 Usage: python3 -I circuit2lean.py <lease-or-gap.json> <circuit> [--reverse-inputs] [--table HEX] [--split K] [-o out.lean]
 
@@ -140,10 +142,68 @@ def cofactors(n, k):
     return "\n".join(out)
 
 
+REP = re.compile(r"PEqualNP\.Represents\.RepSizeAtMost \(fun \(u : Fin (\d+)\) \(v : Fin (\d+)\) => (.*)\) (\d+)", re.S)
+REP_MASK = re.compile(r"\((\d+) : ℕ\)\.testBit \((\d+) \* u\.val \+ v\.val\)")
+
+
+def one_a_side(n, m, mask):
+    """The promise rows of a one-a-side n x m graph: [(row, value)], row = left u on (wire u) + right v on (wire n + v),
+    value = bit (m * u + v) of mask, as in `oneEach u v` and the desk's `(mask : ℕ).testBit (m * u.val + v.val)`."""
+    return [((1 << u) | (1 << (n + v)), bool(mask >> (m * u + v) & 1)) for u in range(n) for v in range(m)]
+
+
+def check_rows(c, rows):
+    for r, want in rows:
+        if evaluate(c, [bool(r >> i & 1) for i in range(c["n"])]) != want:
+            sys.exit(f"circuit differs from the graph on promise row {r}")
+
+
+def lean_rep(gap, c, mt):
+    """`RepSizeAtMost A s` (AND/OR only, values asked only on the n*m one-a-side inputs): circuit, `Monotone2` by cases,
+    size and `Represents` by decide (n*m rows, no splitting needed)."""
+    n, m, body, k = int(mt[1]), int(mt[2]), mt[3], int(mt[4])
+    if any(op == "not" for op, _ in c["gates"]):
+        sys.exit("RepSizeAtMost allows AND/OR only: the circuit has a NOT gate")
+    check_shape(c, n + m, k)
+    mk = REP_MASK.fullmatch(body.strip())
+    if mk and int(mk[2]) == m:
+        check_rows(c, one_a_side(n, m, int(mk[1])))
+    else:
+        print("graph is not `(mask : ℕ).testBit (m * u.val + v.val)`: not checked in Python, Lean will judge",
+              file=sys.stderr)
+    mod, g = gap["module"], len(c["gates"])
+    gl = ", ".join(f"⟨GateOp.{op}, [{', '.join(map(str, a))}]⟩" for op, a in c["gates"])
+    ok = ("  intro g hg\n  simp only [C0, List.mem_cons, List.not_mem_nil, or_false] at hg\n"
+          f"  rcases hg with {' | '.join(['rfl'] * g)} <;> simp") if g else "  intro g hg\n  simp [C0] at hg"
+    text = f"""{chr(10).join('import ' + i for i in gap.get('imports') or ['PEqualNP.Defs'])}
+
+namespace {mod}
+
+open PEqualNP.CircuitLowerBounds PEqualNP.MetaComplexity
+
+/-- {g} gates; wires 0..{n - 1} are the left vertices, {n}..{n + m - 1} the right ones, gate j makes wire {n + m} + j. -/
+def C0 : Circuit := ⟨[{gl}], {c['output']}⟩
+
+theorem ok0 : Monotone2 C0 := by
+{ok}
+
+end {mod}
+
+theorem {mod} : {gap['statement'].strip()} :=
+  ⟨{mod}.C0, {mod}.ok0, by decide, by decide +kernel⟩
+"""
+    if len(text.encode()) > MAX_BYTES:
+        sys.exit(f"file is {len(text.encode())} bytes > 512 KiB")
+    return text
+
+
 def lean(gap, c, split=None):
+    mt = REP.fullmatch(gap["statement"].strip())
+    if mt:
+        return lean_rep(gap, c, mt)
     m = re.fullmatch(r"PEqualNP\.MetaComplexity\.HasCircuitSize (\d+) (\(fun .*\)) (\d+)", gap["statement"].strip(), re.S)
     if not m:
-        sys.exit("statement is not `PEqualNP.MetaComplexity.HasCircuitSize n (fun ...) k`")
+        sys.exit("statement is neither `PEqualNP.MetaComplexity.HasCircuitSize n (fun ...) k` nor `PEqualNP.Represents.RepSizeAtMost (fun (u : Fin n) (v : Fin m) => ...) s`")
     n, fun, k = int(m[1]), m[2], int(m[3])
     split = max(0, n - SPLIT_AT) if split is None else split
     if not 0 <= split <= n:
@@ -240,6 +300,18 @@ def demo():
     assert t.count("decide +kernel") == 4 and "[true, false, b2]" in t
     assert cofactors(3, 0).count("decide +kernel") == 1 and "theorem ev0 : ∀ b0 b1 b2" in cofactors(3, 0)
     assert "theorem ev_111 : C0.eval [true, true, true]" in cofactors(3, 3)  # k = n: closed rows
+    # RepSizeAtMost: 2x2 identity graph (mask 0b1001), wires u0 u1 v0 v1, AND(u0,v0) OR AND(u1,v1)
+    gap = {"module": "M", "statement": "PEqualNP.Represents.RepSizeAtMost (fun (u : Fin 2) (v : Fin 2) => "
+           "(9 : ℕ).testBit (2 * u.val + v.val)) 3"}
+    rep = {"n": 4, "gates": [["and", [0, 2]], ["and", [1, 3]], ["or", [4, 5]]], "output": 6}
+    assert one_a_side(2, 2, 9) == [(5, True), (9, False), (6, False), (10, True)]
+    assert "Monotone2 C0" in lean(gap, rep) and "by decide +kernel⟩" in lean(gap, rep)
+    for bad in ({**rep, "output": 4}, {**rep, "gates": rep["gates"] + [["or", [6, 6]]], "output": 7},
+                {**rep, "gates": [["not", [0]]] + rep["gates"][1:]}):
+        try:
+            lean(gap, bad); raise AssertionError(f"accepted {bad}")
+        except SystemExit:
+            pass
     print("demo ok")
 
 

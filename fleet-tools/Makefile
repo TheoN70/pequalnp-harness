@@ -9,6 +9,13 @@ CIRBO_REV = ca19a9f29691459563a8a0a90d8f5b6cdc4e5006
 CIRBO_DIR ?= $(abspath $(CURDIR)/../../work/tools)
 all: $(BINS)
 
+# make test: the self-checks (--demo) of the Python tools and slots; circsat/promise_batch need sat-venv
+test:
+	python3 -I circuit2lean.py --demo
+	sat-venv/bin/python -I circsat.py --demo
+	sat-venv/bin/python -I promise_batch.py --demo
+	./slots --demo
+
 cirbo: $(CIRBO_DIR)/cirbo-venv/.ok-$(CIRBO_REV)
 $(CIRBO_DIR)/cirbo-venv/.ok-$(CIRBO_REV): cirbo-requirements.txt cirbo_check.py
 	mkdir -p $(CIRBO_DIR)
@@ -19,5 +26,5 @@ $(CIRBO_DIR)/cirbo-venv/.ok-$(CIRBO_REV): cirbo-requirements.txt cirbo_check.py
 	echo $(CIRBO_DIR)/cirbo-src > "$$($(CIRBO_DIR)/cirbo-venv/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/cirbo-src.pth"
 	$(CIRBO_DIR)/cirbo-venv/bin/python -I cirbo_check.py
 	touch $@
-.PHONY: all clean cirbo
+.PHONY: test all clean cirbo
 clean: ; rm -f $(BINS)
