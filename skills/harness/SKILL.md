@@ -32,7 +32,7 @@ This session builds the tools the fleet uses to solve steps from https://pequaln
 | `fleet-tools/` | search tools (C exact and local searches, SAT via `sat-venv`, LRAT, Lean generators), `Makefile`, `requirements.txt`, playbook `README.md` |
 | `skills/` | `pequalnp-master`, `pequalnp-lane`, `pequalnp-hard`, `orchestrator`, `harness` (this file) |
 
-Outside the repo but part of the harness: `penp/.mcp.json` (lean-lsp-mcp, started with `--disable-tools lean_build` so no agent rebuilds the shared clone) and Cirbo (exact circuit synthesis by SAT, `work/tools/cirbo-src` at commit ca19a9f + `work/tools/cirbo-venv`; basis `[lnot_, and_, or_]`, its row j puts input 0 on the most significant bit). Both are to be packaged into the repo.
+Outside the repo but part of the harness: `penp/.mcp.json` (lean-lsp-mcp, started with `--disable-tools lean_build` so no agent rebuilds the shared clone) and Cirbo (exact circuit synthesis by SAT, `work/tools/cirbo-src` at commit ca19a9f + `work/tools/cirbo-venv`; basis `[lnot_, and_, or_]`; its circuits go to Lean with `fleet-tools/circuit2lean.py`). Both are to be packaged into the repo.
 
 Gitignored on purpose: run state (`master/leases/`, `verdicts.txt`, `mem-grants`, `backup-proofs/`), C binaries (built by `make -C fleet-tools`), `sat-venv/`. Never commit them. The Lean clones (`pequalnp-proofs`, `pequalnp-normal*`), `work/` and `results.tsv` live beside the repo, not in it. The Codex fleet was retired on 2026-11-26: do not bring back `codex-*` hooks.
 

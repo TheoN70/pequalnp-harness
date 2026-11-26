@@ -128,7 +128,7 @@ free ¬x0, L-meta-1884), `pm/lsdnf` (monotone DNF on ≤ 20 inputs). Usage line 
 matching; `rect_cover_9294.py` one rectangle-cover instance. **Cirbo** (exact circuit synthesis by SAT, SPbSAT/cirbo
 commit ca19a9f, MIT) lives in `work/tools/cirbo-src` + `work/tools/cirbo-venv` (the wheel does not build; a `.pth`
 points at the source). pequalnp's model: `basis=[Operation.lnot_, Operation.and_, Operation.or_]` (NOT counts as a
-gate). Cirbo's row j puts input 0 on the most significant bit: remap before writing Lean.
+gate). Cirbo's row j puts input 0 on the most significant bit: build its table by applying f to the input vector (as `work/*/cirbo/run.py` does) and no remap is needed; `circuit2lean.py --reverse-inputs` only for a raw pequalnp table.
 
 ### Lower bounds by LRAT certificate (`fleet-tools/lrat/`, README there)
 
