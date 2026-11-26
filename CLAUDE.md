@@ -124,15 +124,15 @@ Any other undocumented pequalnp.com URL stays forbidden: never probe one.
 7. The desk's next unit for a slot (Master only, rule "Always a unit to prove"): `bash master/grab.sh --next <slot>
    [--kind prove] [--level solid|hard|open]` writes `leases/<id>.json` and `busy-<slot>`, logs `LEASED`; nothing offered:
    `EMPTY` + `retry_after_s`, exit 5 (wait that long); a unit already held: `UNIT-HELD`, exit 6, never released.
-   `--skip-false-siblings`: a RepSizeAtMost unit with k <= |serving inputs| (false by the L_meta_9291 recipe,
-   `rep_lower_gen.py --is-false`) is released `other`, its negation written uncompiled to `master/backup-proofs/refutes/<id>.lean`,
+   `--skip-false-siblings`: a RepSizeAtMost unit shown false by `rep_lower_gen.py --is-false` (k <= |R|-2 by counting,
+   k = |R|-1 with no read-once tree on R, k = |R| when the generated Lean compiles on a `slots` core; any doubt keeps it) is released `other`, its negation written uncompiled to `master/backup-proofs/refutes/<id>.lean`,
    and the desk asked again, up to 5 times (exit 7 after 5 false ones).
 
 ### Collector files (`master/leases/`)
 
 | File | Meaning |
 |---|---|
-| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` / `--next` got back a unit already in a `busy-*`: kept, never released), `EMPTY` (`--next`: nothing offered, with retry_after_s), `SKIPPED-FALSE` (`--next --skip-false-siblings`: a RepSizeAtMost sibling with k <= serving inputs handed back, negation kept in `master/backup-proofs/refutes/<id>.lean`) |
+| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` / `--next` got back a unit already in a `busy-*`: kept, never released), `EMPTY` (`--next`: nothing offered, with retry_after_s), `SKIPPED-FALSE` (`--next --skip-false-siblings`: a RepSizeAtMost sibling shown false by `rep_lower_gen.py --is-false` handed back, negation kept in `master/backup-proofs/refutes/<id>.lean`) |
 | `busy-<lane>` | lane busy; content = step id (empty after BEAT-END). Deleting it reopens the lane |
 | `<id>.json` | raw desk answer: `gap` (id, title, statement, file, module, imports) + `lease` (id) |
 | `last-assigned` | last lane given a step (round-robin pointer) |

@@ -19,7 +19,8 @@
 #   (Master only; one shot) leases the desk's next unit (desk/next &another=1 + filters) into that slot: writes
 #   leases/<id>.json and busy-<slot>, logs LEASED. Nothing offered: logs EMPTY with retry_after_s, exit 5 (the caller
 #   waits that long). A unit we already hold: UNIT-HELD, exit 6, never released. No auto-release filter, except
-#   --skip-false-siblings: a RepSizeAtMost unit with k <= |serving inputs| (false by the merged L_meta_9291 recipe) is
+#   --skip-false-siblings: a RepSizeAtMost unit that `rep_lower_gen.py --is-false` shows false (counting, read-once DP,
+#   or the generated Lean compiling; any doubt keeps it) is
 #   released (other), logged SKIPPED-FALSE, its negation written to backup-proofs/refutes/<id>.lean; up to 5 asks, exit 7.
 DESK=${DESK:-https://pequalnp.com/desk}
 OUT=$(dirname "$(readlink -f "$0")")/leases; mkdir -p "$OUT"
@@ -74,13 +75,13 @@ if [ "${1:-}" = --next ]; then
     if grep -qxF "$got" "$OUT"/busy-* 2>/dev/null; then  # a unit we already hold: never release it
       log "UNIT-HELD $lane $got (--next)"; echo "desk answered $got, already held: nothing new" >&2; exit 6
     fi
-    # A RepSizeAtMost sibling with k <= |R| (serving inputs) is false by the merged L_meta_9291 recipe: keep the
+    # A RepSizeAtMost sibling that rep_lower_gen.py --is-false shows false (not just k <= |R|: 541059:8 is true): keep the
     # negation's Lean (not compiled) for a refute unit, hand the unit back (other), ask again.
     [ $skip = 1 ] && mkdir -p "$here/backup-proofs/refutes" && \
       python3 -I "$here/../fleet-tools/rep_lower_gen.py" --is-false "$f" -o "$here/backup-proofs/refutes/$got.lean" 2>/dev/null || break
     lease=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["lease"]["id"])' "$f" 2>/dev/null)
     curl -sS --max-time 20 -X POST "$DESK/release?lease=$lease&reason=other" >/dev/null 2>&1
-    log "SKIPPED-FALSE $lane $got other (k <= serving inputs; negation in backup-proofs/refutes/$got.lean)"
+    log "SKIPPED-FALSE $lane $got other (shown false; negation in backup-proofs/refutes/$got.lean)"
     echo "skipped false sibling $got" >&2
     [ $attempt = 5 ] && { echo "5 false siblings in a row: try again later" >&2; exit 7; }
   done

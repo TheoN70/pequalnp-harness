@@ -3,7 +3,7 @@
 zero-points ZZ, the shape and the bound replaced.
 
 Usage: python3 -I rep_lower_gen.py <lease.json> [-o out.lean] [--drop-zero p,..]   statement and module from the lease (a positive statement: its negation)
-       python3 -I rep_lower_gen.py --is-false <lease.json> [-o out.lean]   exit 0 if k <= |R| (false by the recipe), 1 if not
+       python3 -I rep_lower_gen.py --is-false <lease.json> [-o out.lean]   exit 0 only if shown false (counting, read-once DP, or the Lean proof compiles), 1 = keep
        python3 -I rep_lower_gen.py --raw <n> <m> <M> <k> <ident> [-o out.lean] [--drop-zero p,..]
          e.g. --raw 4 5 104317 9 L_meta_21063;  --raw 5 5 31523873 9 L_meta_21267 --drop-zero 4
 
@@ -150,6 +150,65 @@ def serving(n, m, M):
             [n + v for v in range(m) if any(A(u, v) and not A(u, x) for u in range(n) for x in range(m))])
 
 
+def readonce(n, m, M, R):
+    """A read-once AND/OR tree on exactly the leaves R that equals the graph on the n*m promise points, or None
+    (Research-L-meta-21062, work/one-a-side-4x5/readonce.py: DP over leaf subsets, vectors on the points)."""
+    pts = [(u, v) for u in range(n) for v in range(m)]
+    vec = lambda i: sum(1 << p for p, (u, v) in enumerate(pts) if (i < n and u == i) or (i >= n and v == i - n))
+    target = M & ((1 << (n * m)) - 1)
+    memo = {}
+
+    def F(S):
+        if S not in memo:
+            if len(S) == 1:
+                memo[S] = {vec(S[0]): f"w{S[0]}"}
+            else:
+                out, first, rest = {}, S[0], S[1:]
+                for k in range(1 << len(rest)):  # S1 holds `first`: each split once
+                    S1 = (first,) + tuple(x for j, x in enumerate(rest) if k >> j & 1)
+                    S2 = tuple(x for j, x in enumerate(rest) if not k >> j & 1)
+                    if S2:
+                        for a, fa in F(S1).items():
+                            for b, fb in F(S2).items():
+                                out.setdefault(a & b, f"({fa} & {fb})"); out.setdefault(a | b, f"({fa} | {fb})")
+                memo[S] = out
+        return memo[S]
+    return F(tuple(R)).get(target)
+
+
+def lean_ok(text):
+    """Compile `text` in the shared clone (one core from `slots`, capmem 6G, 10 min): True only on a clean build."""
+    import subprocess, tempfile
+    lean_dir = os.path.join(HERE, "../../pequalnp-proofs/lean")
+    core = subprocess.run([os.path.join(HERE, "slots"), "1"], capture_output=True, text=True)
+    if core.returncode:
+        print(f"no free core to compile ({core.stderr.strip()}): keep it", file=sys.stderr)
+        return False
+    with tempfile.TemporaryDirectory() as t:
+        f = os.path.join(t, "Check.lean")
+        open(f, "w").write(text)
+        try:
+            r = subprocess.run(["taskset", "-c", core.stdout.strip(), os.path.join(HERE, "capmem"), "-m", "6G", "lake", "env",
+                                "lean", f], cwd=lean_dir, capture_output=True, text=True, timeout=600)
+        except subprocess.TimeoutExpired:
+            return False
+    return r.returncode == 0 and "error" not in r.stdout and "sorry" not in r.stdout
+
+
+def shown_false(n, m, M, k, R, text):
+    """(False-for-sure, why). k <= |R|-2: every serving input is read, a tree on |R| leaves needs |R|-1 gates.
+    k = |R|-1: R-1 gates reading R inputs = a read-once tree on R: false iff none fits. k = |R|: only the recipe's
+    in-kernel checks decide: false iff the generated Lean compiles. Anything else, or any doubt: not false."""
+    if k <= len(R) - 2:
+        return True, f"k = {k} <= |R| - 2 = {len(R) - 2}: reading the {len(R)} serving inputs takes >= {len(R) - 1} gates"
+    if k == len(R) - 1:
+        f = readonce(n, m, M, R)
+        return (False, f"a read-once tree fits: {f}") if f else (True, f"k = |R| - 1 = {k} and no read-once tree on R fits")
+    if k == len(R) and text and lean_ok(text):
+        return True, f"k = |R| = {k}: the generated Lean proof compiles"
+    return False, f"k = {k}, |R| = {len(R)}: not shown false (the Lean check failed or was not possible)"
+
+
 def main(a):
     out, drop = None, ()
     is_false = "--is-false" in a
@@ -172,16 +231,20 @@ def main(a):
         if is_false:  # grab.sh --skip-false-siblings: exit 0 = false by the recipe (k <= |R|), 1 = keep it
             if not mt or int(mt[5]) != m_ or (n_, m_) not in ((5, 5), (4, 5)):
                 sys.exit(1)
-            R = serving(n_, m_, int(mt[4]))
-            if not R or int(mt[6]) > len(R):
+            M_, k_ = int(mt[4]), int(mt[6])
+            R = serving(n_, m_, M_)
+            if not R or k_ > len(R):
                 sys.exit(1)
-            print(f"false by the recipe: k = {mt[6]} <= |R| = {len(R)}", file=sys.stderr)
-            if out:
-                try:
-                    open(out, "w").write(generate(n_, m_, int(mt[4]), int(mt[6]), g["module"].rsplit(".", 1)[1], st, drop))
-                except (SystemExit, AssertionError) as e:
-                    print(f"no proof written: {e}", file=sys.stderr)
-            sys.exit(0)
+            try:
+                text = generate(n_, m_, M_, k_, g["module"].rsplit(".", 1)[1], st, drop)
+            except (SystemExit, AssertionError) as e:
+                text = None
+                print(f"no proof generated: {e}", file=sys.stderr)
+            ok, why = shown_false(n_, m_, M_, k_, R, text)
+            print(("false: " if ok else "keep: ") + why, file=sys.stderr)
+            if ok and out and text:
+                open(out, "w").write(text)
+            sys.exit(0 if ok else 1)
         if not mt or int(mt[5]) != m_:
             sys.exit("statement is not `¬ PEqualNP.Represents.RepSizeAtMost (fun (u : Fin n) (v : Fin m) => "
                      "(M : ℕ).testBit (m * u.val + v.val)) k`")

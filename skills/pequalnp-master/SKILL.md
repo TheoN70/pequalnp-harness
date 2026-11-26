@@ -56,7 +56,7 @@ loop below (lanes, BAIL, pause-watch, memory grants), which stays written for wh
   at once, no OK needed: first an open sibling of a family we have a generator for (One-a-side 4×5, Table 1a 5×5:
   `circuit2lean.py` / `rep_lower_gen.py`), else the desk's next `prove` unit (`desk/next` with a research slot). One
   such unit is enough, not one per session. Skip siblings whose bound k is at most their number of inputs
-  (Table 1a 5×5 "≤ 10" or less, One-a-side 4×5 "≤ 9" or less): they are false whenever every input serves, and a refutation earns
+  (Table 1a 5×5 "≤ 10" or less, One-a-side 4×5 "≤ 9" or less): they are false when `fleet-tools/rep_lower_gen.py --is-false` says so (counting below |R|-1, no read-once tree at |R|-1, the generated Lean compiling at |R|; any doubt keeps the unit), and a refutation earns
   nothing while no refute unit exists (21062, 21063, 21267, 21268). Send Orchestrator the id, title and statement; it starts a fresh Research session for it.
 - **Autonomy rules** (the owner, 2026-11-26, 18:50 UTC), no further OK needed:
   1. *True sibling found by triage*: when a Research session sends `<id> circuit vérifié <path>` for a unit we do not
