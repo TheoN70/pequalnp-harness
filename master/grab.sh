@@ -27,10 +27,12 @@ if [ "${1:-}" = --unit ]; then
   [ -s "$OUT/busy-$lane" ] && { echo "busy-$lane already holds $(cat "$OUT/busy-$lane")" >&2; exit 1; }
   exec 8>"$OUT/manager.lock"; flock 8
   f="$OUT/.unit.json"
-  curl -sS --max-time 20 "$DESK/next?handle=$H&value=1&model=${PNP_MODEL:-claude-sonnet-5-5}$q" > "$f" 2>/dev/null || { echo "desk unreachable" >&2; exit 1; }
+  curl -sS --max-time 20 "$DESK/next?handle=$H&another=1&value=1&model=${PNP_MODEL:-claude-sonnet-5-5}$q" > "$f" 2>/dev/null || { echo "desk unreachable" >&2; exit 1; }
   got=$(python3 -I -c 'import json,re,sys; g=json.load(open(sys.argv[1])).get("gap"); print(g["id"] if isinstance(g,dict) and re.fullmatch(r"L-[a-z]+-\d+", str(g.get("id",""))) else "")' "$f" 2>/dev/null)
   if [ "$got" != "$id" ]; then
-    if [ -n "$got" ]; then  # the desk answered another unit: never keep it
+    if [ -n "$got" ] && grep -qxF "$got" "$OUT"/busy-* 2>/dev/null; then  # a unit we already hold: never release it
+      log "UNIT-HELD $lane $got (asked $id)"
+    elif [ -n "$got" ]; then  # the desk answered another unit: never keep it
       lease=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["lease"]["id"])' "$f" 2>/dev/null)
       curl -sS --max-time 20 -X POST "$DESK/release?lease=$lease&reason=other" >/dev/null 2>&1; log "RELEASED $lane $got other (asked $id)"
     fi

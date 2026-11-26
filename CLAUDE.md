@@ -107,14 +107,14 @@ Any other undocumented pequalnp.com URL stays forbidden: never probe one.
    unit was settled or stood down: never submit it). Master records the outcome and deletes the busy file to reopen the lane.
    When desk/next has nothing it waits the answer's `retry_after_s` (1..3600 s) before asking again.
 6. A named unit (Master only): `bash master/grab.sh --unit <id> [--proof] <lane|research>` leases exactly that unit
-   (`&gap=<id>`; `--proof` adds `&have=proof`, only with a checked proof in hand), writes `leases/<id>.json` and
+   (`&gap=<id>&another=1`; `--proof` adds `&have=proof`, only with a checked proof in hand), writes `leases/<id>.json` and
    `busy-<lane>`, logs `LEASED` (or `UNIT-REFUSED` + the desk's reason, exit 4). It runs beside the collector, which beats it.
 
 ### Collector files (`master/leases/`)
 
 | File | Meaning |
 |---|---|
-| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased) |
+| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` got back a unit already in a `busy-*`: kept, never released) |
 | `busy-<lane>` | lane busy; content = step id (empty after BEAT-END). Deleting it reopens the lane |
 | `<id>.json` | raw desk answer: `gap` (id, title, statement, file, module, imports) + `lease` (id) |
 | `last-assigned` | last lane given a step (round-robin pointer) |
