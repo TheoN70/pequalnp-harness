@@ -163,14 +163,14 @@ const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim
 const heat=p=>{const r=["#16263c","#184f95","#256abf","#3987e5","#6da7ec","#9ec5f4"];return r[Math.min(5,Math.floor(p/17))]};
 
 function kpis(){
-  const R=S.results, n=R.length, m=R.filter(r=>r.outcome==="merged").length, sub=R.filter(r=>r.outcome==="submitted").length;
+  const R=S.results, n=R.length, m=R.filter(r=>r.outcome==="merged").length, sub=S.gh?Object.values(S.gh).filter(x=>x==="OPEN").length:R.filter(r=>r.outcome==="submitted").length;
   const v=Object.values(S.verdicts).reduce((a,b)=>a+b,0), act=S.procs.filter(p=>p.cpu>=50).length;
   const runs=S.research.filter(r=>S.procs.some(p=>p.cwd.startsWith("work/"+r.step))).length;
   const seg=Array.from({length:S.budget},(_,i)=>`<i class="${i<act?(act>S.budget?"over":"on"):""}"></i>`).join("");
   const d=S.desk||{};
   const T=[["Étapes tentées",n,`${new Set(R.map(r=>r.step)).size} étapes distinctes`,"--axis"],
     ["Mergées",m,`${(100*m/Math.max(n,1)).toFixed(1).replace(".",",")} % des baux`,"--aqua"],
-    ["PR en attente",sub,"soumises, pas encore mergées","--blue"],
+    ["PR en attente",sub,S.gh?"ouvertes sur GitHub":"soumises d'après results.tsv (GitHub injoignable)","--blue"],
     ["Verdicts enregistrés",v,Object.entries(S.verdicts).map(([k,x])=>`${x} ${e(k.replaceAll("_"," "))}`).join(" · "),"--yellow"],
     ["Sessions Research",(S.sessions||[]).length,`${(S.sessions||[]).reduce((n,s)=>n+s.agents.filter(a=>!a.finished).length,0)} sous-agent(s) en cours · ${runs} recherche(s) avec solveurs`,"--magenta"],
     ["Solveurs actifs",`${act}<span class="muted" style="font-size:18px"> / ${S.budget}</span>`,`<div class="seg">${seg}</div>`,act>S.budget?"--crit":"--blue"],
@@ -306,7 +306,7 @@ function tablesAndFeed(){
     S.procs.map(p=>{const all=p.cores===`0-${S.cores.length-1}`;return `<tr><td class="num">${p.pid}</td><td class="mono">${e(p.exe)}</td><td class="num">${p.cpu} %</td><td class="num">${p.rss_mb>=1024?(p.rss_mb/1024).toFixed(1).replace(".",",")+" Go":p.rss_mb+" Mo"}</td>
       <td class="mono">${all?'<span class="muted" data-tip="Aucun taskset : le processus peut tourner sur tous les cœurs, réservés compris">non épinglé</span>':e(p.cores)}</td><td class="num">${ago(p.age_s)}</td><td class="mono">${e(p.cwd)}</td><td class="cmd" data-tip="${e(p.cmd)}">${e(p.cmd)}</td></tr>`}).join("")+"</table>":'<p class="muted">Aucun processus de la flotte ne tourne.</p>';
   const P=S.results.filter(r=>r.pr).reverse(), lab=Object.fromEntries(OUT.map(o=>[o[0],o]));
-  $("prs").innerHTML=P.length?`<table><tr><th>PR</th><th>Étape</th><th>État</th><th>Date</th><th>Note</th></tr>`+P.map(r=>{const o=lab[okey(r.outcome)];
+  $("prs").innerHTML=P.length?`<table><tr><th>PR</th><th>Étape</th><th>État</th><th>Date</th><th>Note</th></tr>`+P.map(r=>{const g=S.gh&&S.gh[r.pr], o=g==="MERGED"?lab.merged:g==="CLOSED"?["","Fermée sur GitHub","--grey"]:g==="OPEN"?lab.submitted:lab[okey(r.outcome)];
     return `<tr><td><a href="https://github.com/open-goat/pequalnp-proofs/pull/${r.pr}" target="_blank" rel="noopener">#${r.pr}</a></td><td class="mono">${e(r.step)}</td><td style="white-space:nowrap"><i class="sw" style="background:var(${o[2]})"></i>${o[1]}</td><td class="mono">${e(r.date.slice(5))}</td><td class="muted">${e(r.reason.replace(/#\d+\s*/,""))}</td></tr>`}).join("")+"</table>":'<p class="muted">Aucune PR.</p>';
   const EC={LEASED:"--blue",RELEASED:"--grey",SKIPPED:"--grey",START:"--aqua",STOP:"--crit","BEAT-END":"--yellow","BEAT-ERROR":"--crit",CAPPED:"--orange",UNBLOCKED:"--aqua",RECONCILE:"--magenta"};
   $("events").innerHTML=S.events.slice().reverse().map(l=>{const m=l.match(/^(\S+)\s+(\S+)\s*(.*)$/)||[,"","",l];

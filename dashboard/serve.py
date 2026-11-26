@@ -383,6 +383,23 @@ def research_sessions(titles):
 
 
 DESK = {"t": 0, "data": None}
+GH = {"t": 0, "data": None}
+
+
+def gh_prs():
+    """{number: state} of TheoN70's PRs on open-goat/pequalnp-proofs, from `gh` (read-only, public repo), at most every
+    5 min; None when gh is missing or fails (the page then falls back to results.tsv). GH=0 turns it off."""
+    if os.environ.get("GH") == "0":
+        return None
+    if time.time() - GH["t"] > 300:
+        GH["t"] = time.time()
+        try:
+            r = subprocess.run(["gh", "pr", "list", "-R", "open-goat/pequalnp-proofs", "--author", "TheoN70", "--state", "all",
+                                "--limit", "200", "--json", "number,state"], capture_output=True, text=True, timeout=20, check=True)
+            GH["data"] = {str(p["number"]): p["state"] for p in json.loads(r.stdout)}
+        except Exception:
+            GH["data"] = None
+    return GH["data"]
 
 
 def desk():
@@ -411,7 +428,7 @@ def state(usage, machine):
             verdicts[p[1]] = verdicts.get(p[1], 0) + 1
     collector = any(p["cmd"].find("grab.sh") >= 0 for p in machine.procs) or bool(
         [1 for pid in filter(str.isdigit, os.listdir("/proc")) if "master/grab.sh" in read(f"/proc/{pid}/cmdline").replace("\0", " ")])
-    return {"now": int(time.time()), "collector": collector, "desk": desk(), "lanes": lanes(), "results": results(),
+    return {"now": int(time.time()), "collector": collector, "desk": desk(), "gh": gh_prs(), "lanes": lanes(), "results": results(),
             "verdicts": verdicts, "events": ev, "pause": read(os.path.join(LEASES, "pause-watch.log"), tail=2000).splitlines()[-6:],
             "research": research(), "sessions": research_sessions(usage.titles), "cores": machine.cores, "mem": getattr(machine, "mem", {}), "hist": machine.hist,
             "load": read("/proc/loadavg").split()[:3], "procs": machine.procs, "budget": SOLVER_BUDGET,

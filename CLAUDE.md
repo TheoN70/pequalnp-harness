@@ -232,7 +232,7 @@ search), `restrict.py` (signed size of each restriction of a 6-input table, via 
 `work/` (STATUS files, running solvers), lanes, desk stats, outcomes per category and per hour, cores / memory /
 active solvers against the budget of 14, fleet processes, PRs, the collector log, and every tool with how often the
 sessions called it (counted in the Bash commands of the Claude transcripts of this folder; commands are never served).
-Read-only, standard library only, listens on 127.0.0.1. It reads `desk/stats` at most once a minute (`DESK=0` to stop).
+Read-only, standard library only, listens on 127.0.0.1. It reads `desk/stats` at most once a minute (`DESK=0` to stop). PR states come from GitHub (`gh pr list`, read-only, every 5 min, `GH=0` to stop; results.tsv if gh fails).
 A new file in `fleet-tools/` appears by itself; a tool outside it is one line in `EXTRA` of `serve.py`.
 
 ## Lean tooling
