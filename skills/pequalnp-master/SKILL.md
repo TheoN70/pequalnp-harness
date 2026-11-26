@@ -55,7 +55,9 @@ loop below (lanes, BAIL, pause-watch, memory grants), which stays written for wh
   Research session works on (units only waiting out the 1 h hold do not count). When none is left, lease the next one
   at once, no OK needed: first an open sibling of a family we have a generator for (One-a-side 4×5, Table 1a 5×5:
   `circuit2lean.py` / `rep_lower_gen.py`), else the desk's next `prove` unit (`desk/next` with a research slot). One
-  such unit is enough, not one per session. Send Orchestrator the id, title and statement; it picks the session.
+  such unit is enough, not one per session. Skip siblings whose bound k is at most their number of inputs
+  (Table 1a 5×5 "≤ 10" or less, One-a-side 4×5 "≤ 9" or less): they are false whenever every input serves, and a refutation earns
+  nothing while no refute unit exists (21062, 21063, 21267, 21268). Send Orchestrator the id, title and statement; it picks the session.
 - **Autonomy rules** (the owner, 2026-11-26, 18:50 UTC), no further OK needed:
   1. *True sibling found by triage*: when a Research session sends `<id> circuit vérifié <path>` for a unit we do not
      hold, lease it at once (`grab.sh --unit <id> <free research slot, e.g. research3>`); on `UNIT-REFUSED` tell
