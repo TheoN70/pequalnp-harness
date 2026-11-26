@@ -144,6 +144,7 @@ library for steps that may import only `PEqualNP.Defs`. Works for n ≤ 4; n = 5
 | `onenot_tri8_gen.py` | same, 8 vertices, triangle core (L_meta_14144) |
 | `onenot_core8_gen.py` | same, 8 vertices, any small core checked in-kernel; example `onenot_core8_example.json` |
 | `onenot_lift8_gen.py` | same, 8 vertices, lifted from a merged 7-vertex proof of G − v; candidates from `lift_find.py` |
+| `circuit2lean.py <lease.json> <circuit.json or .bench> [--reverse-inputs] [--table HEX] [-o out.lean]` | any `HasCircuitSize n f k` (upper / search) step from a circuit: Cirbo `.bench` or pequalnp-numbered JSON; checks shape, gate count ≤ k, 512 KiB, optional table; proof = circuit + `decide +kernel` over 2^n rows (to n ~ 12). `--demo` self-check |
 | `six_cert_gen.py` | "six-input monotone f: every AND/OR/NOT circuit has an AND/OR one no larger" (template L_meta_8645) |
 
 Helpers: `cores.py` (core candidates for delete-a-vertex chains, via `liveg`), `core_mirror.py` (sizes the in-kernel
@@ -184,7 +185,7 @@ search), `restrict.py` (signed size of each restriction of a 6-input table, via 
 
 ## Known gaps (Harness backlog, from Orchestrator 2026-11-26)
 
-1. Circuit → Lean file for `upper`/`search` steps (hard-coded circuit + `decide` over all rows, Cirbo input remap). No search step merged yet.
+1. ~~Circuit → Lean file~~ done 2026-11-26: `fleet-tools/circuit2lean.py` (regenerates merged L_meta_1001; maj3 positive test). Left: cofactor splitting of the `decide` past n ~ 12.
 2. One shared, tested SAT encoder of pequalnp's exact circuit model (port of `LinkN.enc2`, now in `work/L-meta-17389/sat/gen.py`).
 3. Builder of the `PEqualNP.Library.LRAT` oleans in the shared clone, without breaking lanes.
 4. `pause-watch` counts re-offered judged steps: count only ids absent from `verdicts.txt` and outside `SKIP_CATS`.

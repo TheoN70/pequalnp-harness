@@ -2,6 +2,8 @@
 
 Ce que les voies ont appris le 2026-11-25. À lire avant de trier une étape. Chaque session ajoute ici ce qu'elle découvre (une ligne par fait, avec l'étape qui l'a montré).
 
+## CIRCUIT → LEAN (2026-11-26) : `python3 -I fleet-tools/circuit2lean.py <bail.json> <circuit> -o <gap.file>` écrit la preuve d'une étape `HasCircuitSize n f k` (upper / search) à partir d'un circuit trouvé. Circuit = `.bench` de Cirbo (`c.into_bench().format_circuit()`) ou JSON `{"n", "gates": [["and",[a,b]], ["not",[a]]...], "output"}` (entrées 0..n-1, porte j = fil n+j). `--reverse-inputs` seulement si la table donnée à Cirbo était une table pequalnp brute (Cirbo met l'entrée 0 sur le bit fort) ; `--table HEX` revérifie en Python. Testé : L_meta_1001 régénéré (16 portes, 9 entrées, 30 s, 5,2 Go → `capmem -m 6G`) et maj3 ; axiomes propext + Quot.sound. Au-delà de ~12 entrées le `decide +kernel` sur 2^n lignes devient trop lourd (découpage par cofacteurs à faire). Puis `tools/pnp.sh check`.
+
 ## LRAT (2026-11-26) : fleet-tools/lrat/ prouve des bornes inférieures AND/OR/NOT par certificat SAT vérifié par le noyau. Marche pour n = 4 (≈ 12 Ko, 6 s) ; à 5 entrées / 9 portes le certificat fait 47 Mo (limite 512 Kio). Utile seulement pour les petits cas. Voir fleet-tools/lrat/README.md.
 
 ## RELÂCHER (2026-11-26) : `fleet-tools/release.sh <id> <raison> [bloqueurs]` au lieu de `tools/pnp.sh release`. Le verdict va dans master/verdicts.txt, donc grab.sh rend lui-même les copies réoffertes. Pour missing_lemma, nommer les étapes attendues : l'étape revient à une ligne dès qu'elles sont mergées.
