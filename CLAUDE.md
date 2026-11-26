@@ -128,12 +128,15 @@ Any other undocumented pequalnp.com URL stays forbidden: never probe one.
    `--skip-false-siblings`: a RepSizeAtMost unit shown false by `rep_lower_gen.py --is-false` (k <= |R|-2 by counting,
    k = |R|-1 with no read-once tree on R, k = |R| when the generated Lean compiles on a `slots` core; any doubt keeps it) is released `other`, its negation written uncompiled to `master/backup-proofs/refutes/<id>.lean`,
    and the desk asked again, up to 5 times (exit 7 after 5 false ones).
+   `--skip-families` (the owner, 2026-11-26: the One-a-side family is excluded from leases, 12 refuted for no points): a unit
+   whose title matches the regex `SKIP_FAMILIES` (default `One-a-side promise`) is released `other`, logged `SKIPPED-FAMILY`,
+   and the desk asked again (same 5 asks).
 
 ### Collector files (`master/leases/`)
 
 | File | Meaning |
 |---|---|
-| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` / `--next` got back a unit already in a `busy-*`: kept, never released), `EMPTY` (`--next`: nothing offered, with retry_after_s), `SKIPPED-FALSE` (`--next --skip-false-siblings`: a RepSizeAtMost sibling shown false by `rep_lower_gen.py --is-false` handed back, negation kept in `master/backup-proofs/refutes/<id>.lean`) |
+| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` / `--next` got back a unit already in a `busy-*`: kept, never released), `EMPTY` (`--next`: nothing offered, with retry_after_s), `SKIPPED-FAMILY` (`--next --skip-families`: title matches `SKIP_FAMILIES`), `SKIPPED-FALSE` (`--next --skip-false-siblings`: a RepSizeAtMost sibling shown false by `rep_lower_gen.py --is-false` handed back, negation kept in `master/backup-proofs/refutes/<id>.lean`) |
 | `busy-<lane>` | lane busy; content = step id (empty after BEAT-END). Deleting it reopens the lane |
 | `<id>.json` | raw desk answer: `gap` (id, title, statement, file, module, imports) + `lease` (id) |
 | `last-assigned` | last lane given a step (round-robin pointer) |

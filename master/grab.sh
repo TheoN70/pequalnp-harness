@@ -22,6 +22,8 @@
 #   --skip-false-siblings: a RepSizeAtMost unit that `rep_lower_gen.py --is-false` shows false (counting, read-once DP,
 #   or the generated Lean compiling; any doubt keeps it) is
 #   released (other), logged SKIPPED-FALSE, its negation written to backup-proofs/refutes/<id>.lean; up to 5 asks, exit 7.
+#   --skip-families: a unit whose title matches the regex SKIP_FAMILIES (default "One-a-side promise") is released (other),
+#   logged SKIPPED-FAMILY, and the desk asked again (same 5 asks, exit 7).
 DESK=${DESK:-https://pequalnp.com/desk}
 OUT=$(dirname "$(readlink -f "$0")")/leases; mkdir -p "$OUT"
 LOG="$OUT/events.log"; touch "$LOG"
@@ -53,13 +55,14 @@ if [ "${1:-}" = --unit ]; then
   exit 0
 fi
 if [ "${1:-}" = --next ]; then
-  lane=${2:-}; shift 2 2>/dev/null; q=""; skip=0
+  lane=${2:-}; shift 2 2>/dev/null; q=""; skip=0; skipfam=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --kind) [[ "${2:-}" =~ ^(prove|refute|search|cut|value)$ ]] || { echo "--kind prove|refute|search|cut|value" >&2; exit 1; }; q="$q&kind=$2"; shift 2 ;;
       --level) [[ "${2:-}" =~ ^(warmup|solid|hard|open)$ ]] || { echo "--level warmup|solid|hard|open" >&2; exit 1; }; q="$q&level=$2"; shift 2 ;;
       --skip-false-siblings) skip=1; shift ;;
-      *) echo "usage: grab.sh --next <lane|researchN> [--kind K] [--level L] [--skip-false-siblings]" >&2; exit 1 ;;
+      --skip-families) skipfam=1; shift ;;
+      *) echo "usage: grab.sh --next <lane|researchN> [--kind K] [--level L] [--skip-false-siblings] [--skip-families]" >&2; exit 1 ;;
     esac
   done
   [[ "$lane" =~ ^[a-z0-9]+$ ]] || { echo "usage: grab.sh --next <lane|researchN> [--kind K] [--level L]" >&2; exit 1; }
@@ -75,15 +78,23 @@ if [ "${1:-}" = --next ]; then
     if grep -qxF "$got" "$OUT"/busy-* 2>/dev/null; then  # a unit we already hold: never release it
       log "UNIT-HELD $lane $got (--next)"; echo "desk answered $got, already held: nothing new" >&2; exit 6
     fi
+    lease=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["lease"]["id"])' "$f" 2>/dev/null)
+    # --skip-families: a unit whose title matches SKIP_FAMILIES (the owner, 2026-11-26: One-a-side is never worth it)
+    if [ $skipfam = 1 ] && python3 -I -c 'import json,re,sys; sys.exit(0 if re.search(sys.argv[2], str(json.load(open(sys.argv[1]))["gap"].get("title",""))) else 1)' \
+        "$f" "${SKIP_FAMILIES:-One-a-side promise}" 2>/dev/null; then
+      curl -sS --max-time 20 -X POST "$DESK/release?lease=$lease&reason=other" >/dev/null 2>&1
+      log "SKIPPED-FAMILY $lane $got other (title matches SKIP_FAMILIES)"; echo "skipped family unit $got" >&2
+      [ $attempt = 5 ] && { echo "5 skipped units in a row: try again later" >&2; exit 7; }
+      continue
+    fi
     # A RepSizeAtMost sibling that rep_lower_gen.py --is-false shows false (not just k <= |R|: 541059:8 is true): keep the
     # negation's Lean (not compiled) for a refute unit, hand the unit back (other), ask again.
     [ $skip = 1 ] && mkdir -p "$here/backup-proofs/refutes" && \
       python3 -I "$here/../fleet-tools/rep_lower_gen.py" --is-false "$f" -o "$here/backup-proofs/refutes/$got.lean" 2>/dev/null || break
-    lease=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["lease"]["id"])' "$f" 2>/dev/null)
     curl -sS --max-time 20 -X POST "$DESK/release?lease=$lease&reason=other" >/dev/null 2>&1
     log "SKIPPED-FALSE $lane $got other (shown false; negation in backup-proofs/refutes/$got.lean)"
     echo "skipped false sibling $got" >&2
-    [ $attempt = 5 ] && { echo "5 false siblings in a row: try again later" >&2; exit 7; }
+    [ $attempt = 5 ] && { echo "5 skipped units in a row: try again later" >&2; exit 7; }
   done
   mv "$f" "$OUT/$got.json"; echo "$got" > "$OUT/busy-$lane"
   log "LEASED $lane $got $OUT/$got.json (Master, --next$q)"
