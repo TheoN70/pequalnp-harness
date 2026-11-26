@@ -18,7 +18,9 @@
 # grab.sh --next <lane|researchN> [--kind prove|refute|search|cut|value] [--level warmup|solid|hard|open]
 #   (Master only; one shot) leases the desk's next unit (desk/next &another=1 + filters) into that slot: writes
 #   leases/<id>.json and busy-<slot>, logs LEASED. Nothing offered: logs EMPTY with retry_after_s, exit 5 (the caller
-#   waits that long). A unit we already hold: UNIT-HELD, exit 6, never released. No auto-release filter.
+#   waits that long). A unit we already hold: UNIT-HELD, exit 6, never released. No auto-release filter, except
+#   --skip-false-siblings: a RepSizeAtMost unit with k <= |serving inputs| (false by the merged L_meta_9291 recipe) is
+#   released (other), logged SKIPPED-FALSE, its negation written to backup-proofs/refutes/<id>.lean; up to 5 asks, exit 7.
 DESK=${DESK:-https://pequalnp.com/desk}
 OUT=$(dirname "$(readlink -f "$0")")/leases; mkdir -p "$OUT"
 LOG="$OUT/events.log"; touch "$LOG"
@@ -50,26 +52,38 @@ if [ "${1:-}" = --unit ]; then
   exit 0
 fi
 if [ "${1:-}" = --next ]; then
-  lane=${2:-}; shift 2 2>/dev/null; q=""
+  lane=${2:-}; shift 2 2>/dev/null; q=""; skip=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --kind) [[ "${2:-}" =~ ^(prove|refute|search|cut|value)$ ]] || { echo "--kind prove|refute|search|cut|value" >&2; exit 1; }; q="$q&kind=$2"; shift 2 ;;
       --level) [[ "${2:-}" =~ ^(warmup|solid|hard|open)$ ]] || { echo "--level warmup|solid|hard|open" >&2; exit 1; }; q="$q&level=$2"; shift 2 ;;
-      *) echo "usage: grab.sh --next <lane|researchN> [--kind K] [--level L]" >&2; exit 1 ;;
+      --skip-false-siblings) skip=1; shift ;;
+      *) echo "usage: grab.sh --next <lane|researchN> [--kind K] [--level L] [--skip-false-siblings]" >&2; exit 1 ;;
     esac
   done
   [[ "$lane" =~ ^[a-z0-9]+$ ]] || { echo "usage: grab.sh --next <lane|researchN> [--kind K] [--level L]" >&2; exit 1; }
   [ -s "$OUT/busy-$lane" ] && { echo "busy-$lane already holds $(cat "$OUT/busy-$lane")" >&2; exit 1; }
   exec 8>"$OUT/manager.lock"; flock 8
-  f="$OUT/.next.json"
-  curl -sS --max-time 20 "$DESK/next?handle=$H&another=1&model=${PNP_MODEL:-claude-sonnet-5-5}$q" > "$f" 2>/dev/null || { echo "desk unreachable" >&2; exit 1; }
-  read -r got retry_s <<< "$(python3 -I -c 'import json,re,sys; d=json.load(open(sys.argv[1])); g=d.get("gap"); ok=isinstance(g,dict) and re.fullmatch(r"L-[a-z]+-\d+", str(g.get("id",""))); w=d.get("retry_after_s"); print(g["id"] if ok else "-", w if type(w) is int and 1 <= w <= 3600 else 300)' "$f" 2>/dev/null)"
-  if [ "${got:--}" = - ]; then  # nothing offered: say when to ask again (the caller waits, this is one shot)
-    log "EMPTY $lane retry_after_s=$retry_s ($q)"; echo "nothing offered; ask again in $retry_s s" >&2; exit 5
-  fi
-  if grep -qxF "$got" "$OUT"/busy-* 2>/dev/null; then  # a unit we already hold: never release it
-    log "UNIT-HELD $lane $got (--next)"; echo "desk answered $got, already held: nothing new" >&2; exit 6
-  fi
+  f="$OUT/.next.json"; here=$(dirname "$(readlink -f "$0")")
+  for attempt in 1 2 3 4 5; do  # with --skip-false-siblings: up to 5 asks, each false sibling handed back at once
+    curl -sS --max-time 20 "$DESK/next?handle=$H&another=1&model=${PNP_MODEL:-claude-sonnet-5-5}$q" > "$f" 2>/dev/null || { echo "desk unreachable" >&2; exit 1; }
+    read -r got retry_s <<< "$(python3 -I -c 'import json,re,sys; d=json.load(open(sys.argv[1])); g=d.get("gap"); ok=isinstance(g,dict) and re.fullmatch(r"L-[a-z]+-\d+", str(g.get("id",""))); w=d.get("retry_after_s"); print(g["id"] if ok else "-", w if type(w) is int and 1 <= w <= 3600 else 300)' "$f" 2>/dev/null)"
+    if [ "${got:--}" = - ]; then  # nothing offered: say when to ask again (the caller waits, this is one shot)
+      log "EMPTY $lane retry_after_s=$retry_s ($q)"; echo "nothing offered; ask again in $retry_s s" >&2; exit 5
+    fi
+    if grep -qxF "$got" "$OUT"/busy-* 2>/dev/null; then  # a unit we already hold: never release it
+      log "UNIT-HELD $lane $got (--next)"; echo "desk answered $got, already held: nothing new" >&2; exit 6
+    fi
+    # A RepSizeAtMost sibling with k <= |R| (serving inputs) is false by the merged L_meta_9291 recipe: keep the
+    # negation's Lean (not compiled) for a refute unit, hand the unit back (other), ask again.
+    [ $skip = 1 ] && mkdir -p "$here/backup-proofs/refutes" && \
+      python3 -I "$here/../fleet-tools/rep_lower_gen.py" --is-false "$f" -o "$here/backup-proofs/refutes/$got.lean" 2>/dev/null || break
+    lease=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["lease"]["id"])' "$f" 2>/dev/null)
+    curl -sS --max-time 20 -X POST "$DESK/release?lease=$lease&reason=other" >/dev/null 2>&1
+    log "SKIPPED-FALSE $lane $got other (k <= serving inputs; negation in backup-proofs/refutes/$got.lean)"
+    echo "skipped false sibling $got" >&2
+    [ $attempt = 5 ] && { echo "5 false siblings in a row: try again later" >&2; exit 7; }
+  done
   mv "$f" "$OUT/$got.json"; echo "$got" > "$OUT/busy-$lane"
   log "LEASED $lane $got $OUT/$got.json (Master, --next$q)"
   echo "leased $got for $lane: $OUT/$got.json"; pgrep -f "master/grab.sh [0-9]" >/dev/null || echo "collector not running: start it (bash master/grab.sh 15) so the lease is beaten" >&2

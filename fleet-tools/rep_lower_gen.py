@@ -3,6 +3,7 @@
 zero-points ZZ, the shape and the bound replaced.
 
 Usage: python3 -I rep_lower_gen.py <lease.json> [-o out.lean] [--drop-zero p,..]   statement and module from the lease (a positive statement: its negation)
+       python3 -I rep_lower_gen.py --is-false <lease.json> [-o out.lean]   exit 0 if k <= |R| (false by the recipe), 1 if not
        python3 -I rep_lower_gen.py --raw <n> <m> <M> <k> <ident> [-o out.lean] [--drop-zero p,..]
          e.g. --raw 4 5 104317 9 L_meta_21063;  --raw 5 5 31523873 9 L_meta_21267 --drop-zero 4
 
@@ -143,8 +144,17 @@ def generate(n, m, M, k, ident, stmt=None, drop=()):
     return out[:cut] + chks + tail
 
 
+def serving(n, m, M):
+    A = lambda u, v: M >> (m * u + v) & 1
+    return ([u for u in range(n) if any(A(u, v) and not A(w, v) for v in range(m) for w in range(n))] +
+            [n + v for v in range(m) if any(A(u, v) and not A(u, x) for u in range(n) for x in range(m))])
+
+
 def main(a):
     out, drop = None, ()
+    is_false = "--is-false" in a
+    if is_false:
+        a.remove("--is-false")
     if "-o" in a:
         i = a.index("-o"); out = a[i + 1]; del a[i:i + 2]
     if "--drop-zero" in a:
@@ -159,6 +169,19 @@ def main(a):
             st = "¬ " + st
         mt = STMT.fullmatch(st)
         n_, m_ = (int(mt[1]), int(mt[2])) if mt and mt[1] else (int(mt[3]), int(mt[3])) if mt else (0, 0)
+        if is_false:  # grab.sh --skip-false-siblings: exit 0 = false by the recipe (k <= |R|), 1 = keep it
+            if not mt or int(mt[5]) != m_ or (n_, m_) not in ((5, 5), (4, 5)):
+                sys.exit(1)
+            R = serving(n_, m_, int(mt[4]))
+            if not R or int(mt[6]) > len(R):
+                sys.exit(1)
+            print(f"false by the recipe: k = {mt[6]} <= |R| = {len(R)}", file=sys.stderr)
+            if out:
+                try:
+                    open(out, "w").write(generate(n_, m_, int(mt[4]), int(mt[6]), g["module"].rsplit(".", 1)[1], st, drop))
+                except (SystemExit, AssertionError) as e:
+                    print(f"no proof written: {e}", file=sys.stderr)
+            sys.exit(0)
         if not mt or int(mt[5]) != m_:
             sys.exit("statement is not `¬ PEqualNP.Represents.RepSizeAtMost (fun (u : Fin n) (v : Fin m) => "
                      "(M : ℕ).testBit (m * u.val + v.val)) k`")

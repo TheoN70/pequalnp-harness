@@ -24,7 +24,8 @@ by Master 1 h later if no refute twin appeared (details in the master and pequal
 **Always a unit to prove** (the owner, ~18:55 UTC, revised 19:00): the fleet always has at least one held unit
 that a Research session works on. When none is left, Master leases the next one at once (sibling of a family we have a
 generator for first, else the desk's next `prove` unit), with no OK needed. Not one lease per session: a Research
-session that has finished and holds no unit is closed by Orchestrator.
+session that has finished its task is deleted by Orchestrator, never reused (it burns context); the next unit gets a
+fresh session.
 
 The fleet no longer works many steps in parallel. **All the machine goes to one hard step** (long, costly searches),
 until it is found, refuted or the owner drops it. Only the owner switches mode or target.
@@ -123,12 +124,15 @@ Any other undocumented pequalnp.com URL stays forbidden: never probe one.
 7. The desk's next unit for a slot (Master only, rule "Always a unit to prove"): `bash master/grab.sh --next <slot>
    [--kind prove] [--level solid|hard|open]` writes `leases/<id>.json` and `busy-<slot>`, logs `LEASED`; nothing offered:
    `EMPTY` + `retry_after_s`, exit 5 (wait that long); a unit already held: `UNIT-HELD`, exit 6, never released.
+   `--skip-false-siblings`: a RepSizeAtMost unit with k <= |serving inputs| (false by the L_meta_9291 recipe,
+   `rep_lower_gen.py --is-false`) is released `other`, its negation written uncompiled to `master/backup-proofs/refutes/<id>.lean`,
+   and the desk asked again, up to 5 times (exit 7 after 5 false ones).
 
 ### Collector files (`master/leases/`)
 
 | File | Meaning |
 |---|---|
-| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` / `--next` got back a unit already in a `busy-*`: kept, never released), `EMPTY` (`--next`: nothing offered, with retry_after_s) |
+| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` / `--next` got back a unit already in a `busy-*`: kept, never released), `EMPTY` (`--next`: nothing offered, with retry_after_s), `SKIPPED-FALSE` (`--next --skip-false-siblings`: a RepSizeAtMost sibling with k <= serving inputs handed back, negation kept in `master/backup-proofs/refutes/<id>.lean`) |
 | `busy-<lane>` | lane busy; content = step id (empty after BEAT-END). Deleting it reopens the lane |
 | `<id>.json` | raw desk answer: `gap` (id, title, statement, file, module, imports) + `lease` (id) |
 | `last-assigned` | last lane given a step (round-robin pointer) |
