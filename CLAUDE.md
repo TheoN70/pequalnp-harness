@@ -15,6 +15,10 @@ the handle holds at once (`capacity`), so leases are a shared, scarce resource: 
 
 ## Operating mode: one problem at a time (the owner, 2026-11-26)
 
+**Since 17:40 UTC: two problems at once** (the owner). Two Research sessions, one target each, each holding its own
+lease (`busy-research`, `busy-research2`); cores split 0-6 / 7-13, memory = "disponible" − 4 GB split between them.
+Everything below that says "one" Research session or cores 0-13 applies per session within its half.
+
 The fleet no longer works many steps in parallel. **All the machine goes to one hard step** (long, costly searches),
 until it is found, refuted or the owner drops it. Only the owner switches mode or target.
 

@@ -13,6 +13,7 @@ The owner (GitHub **TheoN70**) runs several Claude sessions that prove Lean 4 st
 
 ## Current mode: one problem at a time (the owner, 2026-11-26) — read first
 
+Since 17:40 UTC (the owner): two targets, each leased to its own Research session (`grab.sh --unit <id> research` / `research2`). Each target as below.
 All resources go to ONE hard step, worked by one Research session (`/pequalnp-hard <id>`). This overrides the fleet
 loop below (lanes, BAIL, pause-watch, memory grants), which stays written for when the owner brings it back.
 
@@ -44,6 +45,12 @@ loop below (lanes, BAIL, pause-watch, memory grants), which stays written for wh
 - **Refuted target** (the owner, 2026-11-26): do not release on Research's word alone. Orchestrator asks you for the
   refute twin (kind `refute`, the negation listed beside the unit) so Research can prove the negation; release only
   when Orchestrator relays the owner's OK. The category and family filters of `grab.sh` play no part in this mode.
+- **Watching for refute twins is yours** (the owner, 2026-11-26): while a refuted target waits for its refute unit, check
+  at least every 30 min the public pages `https://pequalnp.com/lemma.html#<id>` (it names the "literal negation pair"
+  once one exists) and `https://pequalnp.com/desk` filtered on Kind = refute. Both render in JavaScript: read them with
+  the built-in browser, never another undocumented URL. When a pair appears, lease it with `grab.sh --unit <pair id>
+  research`, check its statement is the negation, and send it to the Research session that holds the Lean proof and to
+  Orchestrator.
 - **Dropped target** (owner's OK): Research writes the verdict line in `master/verdicts.txt`; release the lease with
   `fleet-tools/release.sh <id> <reason>` (from `$PENP/pequalnp-proofs` once the lease is installed there, else
   `curl -X POST "$DESK/release?lease=<lease id>&reason=<reason>"`) and empty `busy-research`.
