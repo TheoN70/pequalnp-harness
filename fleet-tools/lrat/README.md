@@ -39,3 +39,25 @@ proofs are sound (s = 6 checked by VeriPB 3.0.2: VERIFIED UNSATISFIABLE). Kit ke
 `work/tools/pb/`: Exact venv, VeriPB 3 built with cargo, `pbmeasure.py` (CNF -> OPB -> Exact with proof log) and
 `conv1to3.py` (Exact's 1.1 proof format -> VeriPB 3.0). The size limit needs fewer rows or symmetry breaking on
 inputs (see above), not another proof format.
+
+## Promise lower bounds by cubes: `rep_lower.py` (2026-11-26)
+
+`python3 -I rep_lower.py <worktree> <n> <m> <M> <s> <out.lean> [--module MOD] [--cores K] [-m 2G] [--work DIR]` proves
+`¬ RepSizeAtMost (fun (u : Fin n) (v : Fin m) => (M : ℕ).testBit (m * u.val + v.val)) s`, the refute side of a
+one-a-side promise step. The cover lemma is upstream (`PEqualNP.Library.LRAT.Cube.enc2_cover`,
+`Promise.rep_lower_mask_of_cubes`): 3(n+m+s) cubes = first source x operation of the last gate. The script has Lean
+dump the formula and the cubes, refutes each piece with the toolchain's CaDiCaL on `slots` cores (restart-safe in
+`<out>.d/`), packs each LRAT (`lrat2lean.py`) and writes one theorem per cube, a `match` over k, and the bound.
+Exit 3 if a piece is SAT (the bound is false). Imports `PEqualNP.Library.LRAT.PromiseCube`.
+
+Measured (one CaDiCaL per cube, all pieces UNSAT in seconds):
+
+| instance | cubes | file | Lean |
+|---|---|---|---|
+| 2x2 identity (M=9), s=2 | 18 | 29 KB | 9 s, axioms propext / Classical.choice / Quot.sound |
+| 4x5 M=104287, s=5 | 42 | 2.5 MB | not run (> 512 KiB) |
+| 4x5 M=104287, s=6 | 45 | 7.5 MB | not run |
+
+The file grows ~3x per gate: cubes split the solving, not the total proof. A real refute (4x5 at s=9) would be
+hundreds of MB, far over the 512 KiB limit. Usable only where s is small; past that the proof needs a smaller
+argument (gate elimination as a lemma, symmetry breaking, a merged template such as `L_meta_9291.lean`).

@@ -65,6 +65,8 @@ One line each: date, what happened (with the measurement), the rule. Add one whe
 - 2026-11-26: `circuit2lean.py` at one `decide +kernel` over 1024 rows took 5.8 GB (checker limit ~6.5); kernel memory follows the rows of one check, not n: split into 256-row cofactors (measured n=10..14 in the tool's docstring). Measure memory and time before claiming a size limit.
 - 2026-11-26: Exact's VeriPB proofs came out 6-22x larger than CaDiCaL's LRAT on the same instances: measure a proof format on real instances before building a checker for it (details in `fleet-tools/lrat/README.md`).
 
+- 2026-11-26: before writing a Lean lemma, grep the library: the cube cover I was asked to build was already upstream (`Library/LRAT/Cube.lean`, `PromiseCube.lean`); only the driver was missing. And cubes split the solving, not the proof: the total LRAT of 4x5 promise pieces grows ~3x per gate (2.5 MB at s=5), so measure the total size on a small s before promising a refute.
+
 ## Never
 
 - Call `desk/next`, `tools/pnp.sh next`, release or submit: leases belong to Master and the lanes.

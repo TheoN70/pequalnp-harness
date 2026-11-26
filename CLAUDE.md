@@ -170,6 +170,9 @@ gate). Cirbo's row j puts input 0 on the most significant bit: build its table b
 `lower.sh <worktree> <n> <s> <table> <out.lean> [module]` proves "every AND/OR/NOT circuit for f has ≥ s+1 gates"
 via CaDiCaL LRAT replayed by `PEqualNP.Library.LRAT` (compiled in the shared clone by `build_lib.sh`); `lrat2lean.py` packs the certificate, `inline.py` inlines the
 library for steps that may import only `PEqualNP.Defs`. Works for n ≤ 4; n = 5 / 9 gates gives 47 MB (limit 512 KiB).
+`rep_lower.py <worktree> <n> <m> <M> <s> <out.lean>` proves the refute side of a one-a-side promise step, `¬ RepSizeAtMost (...mask M...) s`,
+by the upstream cube cover (`Promise.rep_lower_mask_of_cubes`, 3(n+m+s) cubes) with one LRAT per cube on `slots` cores; checked in Lean on 2x2,
+but ~3x bigger per gate: 4x5 is 2.5 MB at s=5, so only small s fit the 512 KiB limit (table in `fleet-tools/lrat/README.md`).
 
 ### Lean proof generators (from merged templates)
 
