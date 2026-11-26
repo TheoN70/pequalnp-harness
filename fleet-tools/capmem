@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Usage: capmem [-m 5G] <command> [args...]
+# Runs a heavy command (livegpx, live7, liveg, live, lsg, lake build...) in its own systemd scope with a hard memory cap.
+# Why: on 2026-11-25 20:30 a livegpx run grew to 24 GB, the kernel OOM-killed inside Claude Desktop's own cgroup and the app
+# crashed for every lane. Inside a capped scope only the command dies ("Killed", exit 137) and Claude keeps running.
+# ponytail: 7 lanes x 4G = 28G of the 30G box (was 5G with 5 lanes); more only with a Master grant, one job at a time.
+cap=4G
+[ "$1" = "-m" ] && { cap=$2; shift 2; }
+exec systemd-run --user --scope --quiet -p MemoryMax="$cap" -p MemorySwapMax=0 "$@"

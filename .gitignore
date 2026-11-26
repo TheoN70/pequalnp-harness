@@ -1,0 +1,19 @@
+# Built by `make -C fleet-tools`: every file without an extension in fleet-tools/ is a binary,
+# except the ones re-included below.
+/fleet-tools/*
+!/fleet-tools/*.*
+!/fleet-tools/*/
+!/fleet-tools/Makefile
+!/fleet-tools/capmem
+/fleet-tools/pm/lsdnf
+/fleet-tools/pm/out.*
+/fleet-tools/sat-venv/
+__pycache__/
+*.bak
+
+# Run state, written by grab.sh and the lanes
+/master/leases/
+/master/backup-proofs/
+/master/verdicts.txt*
+/master/mem-grants
+/master/grab.sh.before-*

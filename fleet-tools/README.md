@@ -1,0 +1,173 @@
+# Fleet playbook (pequalnp, compte TheoN70)
+
+Ce que les voies ont appris le 2026-11-25. À lire avant de trier une étape. Chaque session ajoute ici ce qu'elle découvre (une ligne par fait, avec l'étape qui l'a montré).
+
+## LRAT (2026-11-26) : fleet-tools/lrat/ prouve des bornes inférieures AND/OR/NOT par certificat SAT vérifié par le noyau. Marche pour n = 4 (≈ 12 Ko, 6 s) ; à 5 entrées / 9 portes le certificat fait 47 Mo (limite 512 Kio). Utile seulement pour les petits cas. Voir fleet-tools/lrat/README.md.
+
+## RELÂCHER (2026-11-26) : `fleet-tools/release.sh <id> <raison> [bloqueurs]` au lieu de `tools/pnp.sh release`. Le verdict va dans master/verdicts.txt, donc grab.sh rend lui-même les copies réoffertes. Pour missing_lemma, nommer les étapes attendues : l'étape revient à une ligne dès qu'elles sont mergées.
+
+## SAT SOLVER (2026-11-26): fleet-tools/sat-venv/bin/python has python-sat (CaDiCaL 1.9.5, Glucose...). Run it under capmem.
+
+MEMORY RULE (read first) — added by Master 2026-11-25 20:35
+
+Every heavy command (livegpx, live7, liveg, live, lsg, lake build, /usr/bin/time -v lake build ...) runs through
+`~/Bureau/Boulot/penp/fleet-tools/capmem [-m 5G] <command> ...`. It puts the command in its own systemd scope with a hard
+memory cap (default 4G since 7 lanes). On 2026-11-25 at 20:30 a livegpx run grew to 24 GB; the kernel OOM-killed inside Claude Desktop's
+cgroup and the app crashed for all lanes (the machine also rebooted at 19:26). Inside capmem only the command dies (exit 137,
+"Killed"): treat that as "search too big", not as a result. More than 4G needs Master's authorization (Théo's rule): send Master `MEM <lane> <size> <id> <why>` (max 8G), wait for
+"MEM OK <lane> <size>", run with `capmem -m <size>`, then send `MEM DONE <lane>` when the job ends. One big grant at a time.
+
+## Trier en premier (1 à 5 min)
+
+1. L'étape jumelle (numéro ± 1) est-elle fusionnée, ou a-t-elle une PR ouverte ? `curl -G https://pequalnp.com/desk/step --data-urlencode gap=<id>` (`not_open` = fusionnée ou retirée, `pr_open` = PR en attente). Une PR ouverte sans verdict n'est PAS une preuve.
+2. Le titre dit « open core », ou la famille est « 4-cycle-free », « Plane of order 3/4 », « G11 », « Petersen », « |E| + tau - 1 » : jusqu'ici toujours une conjecture ouverte (aucune preuve en 14 étapes hard). Relâcher `missing_lemma` après vérification des réductions.
+3. Une borne inférieure exacte au-dessus de ~10 portes sur 8 entrées ou plus ne tient pas dans un certificat (< 512 Ko) : `missing_lemma` ou `out_of_time`.
+4. Lire le sens de la ligne. « Aucun circuit de ≤ k portes » sur un graphe sans 4-cycle avec k = |E| + τ − 2 : `missing_lemma` (L-meta-9746). « Un circuit de ≤ k portes existe » avec le même k : `statement_seems_false`, après une recherche `lsg`. Sans 4-cycle, aucune OR de voisins ne sert à deux centres d'étoile. Copier `~/Bureau/Boulot/penp/pequalnp-proofs/.pnp/research-L-meta-1884/lsg.c`, l'étalonner à |E| + τ − 1, puis lancer 12 × 300 s à k (L-meta-9787 : 17 portes en < 1 s, rien à 16 en 2,5e10 évaluations).
+   Calculer τ soi-même par couplage maximum (König), sans se fier à une estimation : L-meta-9802 (40 sommets, 95 arêtes, k = 113) était annoncé τ = 19, mais il a un couplage parfait, donc τ = 20 et l'étoile fait 114. Au-delà de 80 fils ou 128 points décisifs, `lsg` ne tourne pas : relâcher `statement_seems_false` sur le seul argument « sans 4-cycle ». Quand k ≥ |E| + τ − 1, la preuve est courte : `PEqualNP.MetaComplexity.CoverCircuit.coverCircuit n E K` (module `PEqualNP.MetaComplexity.Helpers.CoverCircuitList`) avec `size_le` (taille + 1 ≤ |E| + |K|), `circuitFun_eq` (hypothèses `hE`, `hT` par `decide`) et `fanInTwo_notFree` pour `Monotone2`.
+5. Une fois le tri fait, relâcher tout de suite : garder le bail jusqu'à la 20e minute ne rapporte rien (L-meta-9746, relâchée 2 min après sa prise).
+
+## Famille « one NOT gate saves nothing » (graphes ≤ 8 sommets)
+
+Décider l'énoncé :
+- AND/OR exact : `./liveg <n> <arêtes a-b,c-d,...> 0 0 6 13 26` (n ≤ 16, imprime le circuit). Pour n = 7 : `./live7 7 <arêtes> 0 6 12`.
+- Avec NOT gratuit : `./livegp <n> <arêtes> 1 1 2 7 <M-1> 27`. **Seul « none » est concluant** : un « FOUND » en univers 2 peut être un artefact (L-meta-14817). Confirmer avec `livegpx` et des points en plus (variable `PTS`, masques séparés par des virgules ; pour 8 sommets : vide, singletons, tous-sauf-un, quelques triangles).
+- Quand `livegpx` répond « FOUND » à M − 2 sur 8 sommets (non concluant) : passer par 7 entrées, où `live7` est exact sur toutes les entrées. Pour un sommet v, `./live7 7 <arêtes de G − v renumérotées> 1 6 <M-1> 26` ; supprimer v paie une porte, donc S(G) ≥ S(G − v) + 1. L-meta-14671 : M = 11, `livegpx` FOUND à 9 (artefact), mais G − 2 a S = 10 exact, donc S(G) ≥ 11 et la négation est fausse (4 s de calcul).
+- Si le minimum avec NOT ≥ M − 1, un NOT ne fait rien gagner : la négation (« It is false that... ») est fausse, l'énoncé positif est vrai.
+- Positif à 7 sommets avec M > 11 : le générateur K4 ne prouve que 11, aucun outil local n'atteint plus. L-meta-10562 (K4 {0,2,4,6}) : `live7` mode 0 « none » jusqu'à 12 puis « table full » à 13 ; `./liveg 7 <arêtes> 0 0 13 14 26` donne none à 13 et un circuit de 14 portes (3 min). Pas de fichier fusionné isomorphe : relâché `missing_lemma` (Normal5).
+
+Prouver un énoncé POSITIF en Lean (vraie chance de PR, vérifier d'abord qu'aucune PR n'est ouverte sur l'étape) :
+- Le graphe a un K4 : `onenot_k4_gen.py` (7 sommets) ou `onenot_k4_gen8.py` (8 sommets, exemple `onenot_k4_8_example.json`). Borne = sommets supprimés + 7 + 1. A donné L-meta-11912 (vérif.) et L-meta-14592 (PR #18747).
+- Le graphe a un triangle et M = sommets supprimés + 4 + 1 : `onenot_tri8_gen.py` (8 sommets). A donné L-meta-14144 (PR #18728).
+- N'importe quel petit cœur (8 sommets) : `python3 -I onenot_core8_gen.py <L_meta_11525.lean d'un worktree à jour> <config.json> <sortie>` (exemple `onenot_core8_example.json`). Config : `step` (json du bail), `order` (sommets supprimés, chacun gardant une arête au moment où on le supprime : supprimer un pendant AVANT son voisin), `core` (les k sommets du cœur), `c` (taille signée du cœur), `gates` et `out` (circuit témoin de `liveg`). Borne = supprimés + c + 1, à comparer à la longueur du témoin. Le cœur est réfuté par la recherche du moteur dans le noyau, sur ses singletons et ses paires ; le générateur rejoue cette recherche en Python avant d'écrire et refuse si `c` est trop grand. Cœur « gemme » (chemin à 4 sommets + un sommet relié aux 4) : c = 7, 28 000 appels, compilation 1 min 15. A donné L-meta-14920 (M = 11, pas de K4 ; supprimés 4, 0, 1 ; cœur 5-2-6-3 + 7 ; PR #18895). Pour choisir : `cores.py` donne les S où (n − |S|) + taille(G[S]) ≥ M − 1 ; prendre le plus petit S. Le coût de la recherche croît vite avec k et c : essayer d'abord k ≤ 5.
+- G a 8 sommets et G − v est (à renommage près) un graphe à 7 sommets DÉJÀ FUSIONNÉ avec le moteur ForestCore (fichiers de ~4000 lignes, `Sig := BitVec 512`, ex. L_meta_11763), avec M(G) = M(G − v) + 1 : `onenot_lift8_gen.py <fichier fusionné> <json du bail> <sortie> <v> '<portes liveg en JSON>' <fil de sortie>`. Il garde le fichier fusionné jusqu'à `wholeBound` et ajoute UNE étape `lower_slice` (supprimer v paie une porte) ; il vérifie seul l'isomorphisme, le codage et le circuit. Marche donc aussi pour M = 13 (pas de plafond à 10). Compilation 30 s. A donné L-meta-14746 (PR #18892). Pour trouver v : calculer M(G − v) pour chaque v avec `liveg`, puis chercher le graphe isomorphe parmi les `L_meta_*.lean` fusionnés (même liste de degrés, puis permutations).
+- Chercher v pour `onenot_lift8_gen.py` en une commande : `python3 -I lift_find.py <worktree à jour> <arêtes> <M(G)>` donne M(G − v) pour chaque v et les fichiers ForestCore fusionnés isomorphes à G − v (59 fichiers de ce moteur sur main le 2026-11-25 ; L-meta-14952 : v = 1, 2, 3 donnent M − 1 mais aucun fichier isomorphe, donc pas de lift).
+- Limite des chaînes (Normal3, L-meta-14312, M = 13) : `cores.py` annonce une borne avec la taille AND/OR du cœur, mais un fichier fusionné « one NOT saves nothing » de taille M' ne prouve que « signé ≥ M' − 1 ». Lift depuis G − v fusionné : (M' − 1) + 1 + 1 = M' + 1, donc il faut M(G) = M(G − v) + 1 exactement ; avec M(G) = M(G − v) + 2 (14312 : G − 3 = L_meta_11217, M' = 11) il manque une porte. Relâcher `missing_lemma` sans chercher plus loin.
+- Trouver le meilleur cœur : `python3 -I cores.py` cherche les sous-graphes S qui maximisent (taille AND/OR de G[S]) − |S| (via `liveg`) ; la borne de la chaîne « supprimer un sommet, payer une porte » vaut (n − |S|) + taille(G[S]). Toujours vérifier un K4 ou un triangle avant de l'annoncer.
+
+## Lot « six-input monotone f symmetric in inputs 0-2 »
+
+- Taille : `./live <table hex> 0x3f <0 AND/OR | 1 NOT gratuit> 1 <N de> <N à> 26` (moins de 10 s). Énoncé sans « symmetric in inputs 0-2 » (« monotone six-input f with table A * 2^32 + B ») : `live` répond « target is not symmetric », mettre le 4e argument à 0 ; table hex = `python3 -c "print('%016x' % (A*2**32+B))"` (L-meta-13872 : m = S = 8, libéré statement_seems_false). `restrict.py` : tailles des restrictions à une entrée.
+- Règle de Normal2 sur m = taille AND/OR : m ≤ 10 faisable avec `six_cert_gen.py` (certificat au format de L_meta_8645, ~300 Ko pour m = 10, 566 s / 5,3 Go sur 2 cœurs) [mesuré : m = 9, 52 Ko, 38 s / 3,45 Go (L-meta-16553) ; m = 10, 324 Ko, 6 min 16 / 5,68 Go sous `capmem -m 6G` (L-meta-16803)] ; m = 11 seulement avec symétrie dans le moteur ; m ≥ 12 relâcher.
+- Retirer `import Mathlib` du fichier quand il n'est pas nécessaire : il coûte ~4 Go au vérificateur.
+
+## Lot « Table 1a 5x5 ... at least 11 gates » (RepSizeAtMost)
+
+- Copier le fichier fusionné `L_meta_9291.lean` et remplacer `MM` (le masque), `OO` (les points à 1) et `ZZ` (les points à 0, 16 au plus). Compilation 29 s / 4,4 Go (L-meta-10115, PR #13940 fusionnée). Ne marche que si les 10 entrées servent.
+
+## Pièges connus
+
+- `liveg` avec une petite table (`... 2 15 22`) écrit « table full » et sort (code 2) dès que M ≥ 13 sur 8 sommets : un filtre `grep -E 'FOUND|none'` cache ce message et laisse croire que la dernière ligne « none » est la réponse. Sans ligne FOUND, relancer le niveau manquant avec la table 26 (`./liveg 8 <arêtes> 0 0 13 13 26`, 66 s). L-meta-15037 (Normal4) : rien à 13, M = 14.
+
+- Mémoire du vérificateur (limite ≈ 6,5 Go) : mesurer avec `cd <worktree>/lean && /usr/bin/time -v lake env lean <fichier>` (ligne « Maximum resident set size »). L_meta_14144 (sortie de `onenot_tri8_gen.py`) : 7,50 Go avec `import Mathlib`, 3,64 Go sans, et il compile sans (PEqualNP.Defs suffit). L_meta_14746 (sortie de `onenot_lift8_gen.py`, sans l'import) : 4,10 Go. Les deux générateurs n'émettent plus `import Mathlib` depuis le 2026-11-25 (Normal4) ; 149 fichiers fusionnés du moteur `Sig := BitVec 512` le portent encore, `onenot_lift8_gen.py` le retire de la copie.
+
+- Soumettre avec `GIT_AUTHOR_NAME=TheoN70 GIT_COMMITTER_NAME=TheoN70 tools/pnp.sh submit <id>`, puis `git checkout -q --detach upstream/main`. Sans ces variables, le nom d'auteur du commit retombe sur le nom du compte local (L-meta-10115).
+- MÉMOIRE (limite du vérificateur ≈ 6,5 Go, au-delà = FAULT) : mesurer AVANT de soumettre avec `cd lean && /usr/bin/time -v lake env lean <fichier> 2>&1 | grep -E "Maximum resident|Elapsed"`. Mesures du 25/11 (Normal2) : `import Mathlib` seul coûte ~5 Go, à ne jamais mettre si `import PEqualNP.Defs` suffit ; L_meta_14144 avec `import Mathlib` 7,1 Go ; L_meta_14592 (K4, sans) 4,2 Go ; L_meta_14920 soumis avec `import Mathlib` 11,7 Go, sans 6,6 Go, puis 4,2 Go une fois la recherche du cœur découpée (corrigé sur #18895). Un `decide +kernel` coûte ~2,5 Go + ~0,15 Go par millier d'appels de `search` : découper une grosse recherche en plusieurs théorèmes (`onenot_core8_gen.py` le fait, plafond 9 500 appels par théorème).
+- Ne pas lancer un build lourd sans surveiller la mémoire : le cœur « nœud papillon » (1,07 million d'appels) est monté à 13,8 Go en 7 min et a mis la machine à 0 Go libre (L-meta-14166, tué). Au-delà de ~100 000 appels, le cœur est hors de portée en temps (20 min) comme en mémoire.
+- Corriger une PR déjà ouverte : `tools/pnp.sh check` refuse (« no longer open (pr_open) »). Faire à la main : `git checkout -q <branche L-meta-N>`, remplacer le fichier, `cd lean && lake build <module>`, `#print axioms` depuis un fichier hors dépôt, `GIT_AUTHOR_NAME=TheoN70 GIT_COMMITTER_NAME=TheoN70 git commit -m <id> <fichier>`, `git push origin <branche>`, vérifier `changed_files: 1` avec `gh api repos/open-goat/pequalnp-proofs/pulls/<n>`, puis `git checkout -q --detach upstream/main` (L-meta-14920).
+
+- `pgrep -f <motif>` se trouve lui-même : une boucle d'attente ne s'arrête jamais (Normal, L-meta-10441, 1 h perdue).
+- Un redémarrage de l'app tue les boucles de beat : le bail expire en 20 min (L-meta-9361, preuve presque finie perdue).
+- Plusieurs flottes visent les mêmes étapes : une PR ouverte 30 min avant la nôtre gagne (L-meta-12274, #16479 fermée en doublon).
+- Le desk suspend la distribution quand la file du vérificateur dépasse ~50 min ; seul `&gap=<id>&have=proof` passe alors.
+- Ne jamais lancer `tools/pnp.sh next` : Master prend les baux (outil grab.sh).
+- `pkill -f <motif>` tue aussi le shell qui le lance si le motif figure dans sa propre ligne de commande (Normal3, L-meta-12274) : tuer par PID.
+- Le desk limite le débit par compte : `tools/pnp.sh release` peut répondre `{"error": "too many requests; wait a minute"}` et le bail reste alors tenu. Toujours lire la réponse (`"released": "<id>"` attendu) avant de l'annoncer à Master ; sinon relancer 75 s plus tard (Normal6, L-meta-13930, passé au second essai).
+
+## Routine « négation one-NOT sur 8 sommets » (Normal3)
+
+- `take_onenot8.sh <worktree> <L-meta-N> <json du bail>` fait tout le tri d'un coup : installe le bail et le squelette, beat + boucle, état desk du jumeau N−1, taille AND/OR exacte M (`liveg`) et borne signée S (`livegpx`, univers enrichi). Règle : dernier « none » signé à k portes ⇒ S ≥ k+1 ; si S + 1 ≥ M la négation est fausse (L-meta-15057 : M = 13, none à 11 ; 14401 : M = 11, none à 10 ; 15047 : M = 10, none à 9 ; 14817 ; 14095).
+- Si `livegpx` répond « universe too large », relancer sans `PTS` (L-meta-15047 : l'univers 2 seul suffisait). Si l'univers 2 seul répond « FOUND » (artefact), passer à `live7` sur chaque G − v (recette de L-meta-14671 plus haut) : L-meta-14673 (M = 11) donnait FOUND à 8 sans `PTS`, mais G − 0 n'a aucun circuit signé à 9 portes, donc S(G) ≥ 11.
+
+## Famille « 4-cycle-free » / « |E| + tau − 1 » / Petersen / G11 (voie Hard, 2026-11-25)
+
+Bilan : 14 étapes hard prises, 0 PR. Toutes sont des tranches d'UNE conjecture ouverte : un circuit AND/OR (fan-in 2) pour la fonction d'arêtes d'un graphe sans 4-cycle a au moins |E| + tau − 1 portes, autrement dit une porte ET « junk » (« dirty », vraie sur un ensemble indépendant) ne rapporte jamais. Prouvé seulement : forêts, chemins, cycles ≥ 5, graphes à longs fils (`notes/note-1-edge-function-exact-size.md` du dépôt), circuits sans junk (L_meta_1876, 8569), circuits à lecture unique (4897, 7639). Les bornes fusionnées pour les graphes denses restent proches du nombre de variables (3690, 8575).
+
+Tri rapide (2 appels d'outil, pas de mathématiques) : `reductions_live: 3` dans le JSON = saturé, plus aucune réduction acceptée ; clé `reductions` absente = étape fermée aux réductions ; les hypothèses d'une réduction d'une étape de profondeur 1 ne sont pas distribuées. Regarder `ls lean/PEqualNP/Outside/R_meta_<id>_*` : si toutes les hypothèses d'UNE réduction sont fusionnées, assembler ; sinon `missing_lemma` à la 20e minute.
+
+État des réductions (✓ = hypothèse fusionnée, ✗ = ouverte) :
+- L-meta-2685 (parent, « deux niveaux suffisent ») : R_1 découpage inutile ; R_41 = charge ✗ + stars ✓ (2874, 3692) ; R_863 = charge ✗ (= L-meta-3241) + realize ✓ (3243) + shaped ✓ (3245).
+- L-meta-3241 (la borne elle-même) : R_1 = h1 ✓ (4293) + h2 ✓ (4295) + h3 ✗ ; R_673 = pin (non trouvée) + core ✗ + stars ✓ (3519) ; R_917 = charge ✗ + stars ✓.
+- L-meta-606 (taille linéaire, maille ≥ 5), coupe R_606_3 : normalize ✓ (1733), trace ✓ (1766), single ✗ (1768), double ✗ (1770). Pour 1770 : R_1 = bothSing/oneSing/bothQuad ✗ ; R_401 = bottomDeep/deepDeep ✗ (le cas « deux junk les plus profonds » est prouvé : 8393) ; R_417 = semantics/cleanCenters/unmatched ✗. Lemmes fusionnés : uniquement junk peu profond (8393, 8197, 1880, 3805, 3807, 5242, 7895, 1878).
+- L-meta-612, étape 4185 (fermée par le desk le 25/11 à 15:03 UTC) : R_1 = oneJunk ✓ (8103) + manyJunk ✗ ; R_317 = centres ✓ (6238) + linear ✓ (6240) + shared ✗ ; R_7 = analyze ✓ (7077) + remaining ✗. Toujours le cas « au moins 2 portes junk ».
+- Sans drapeau `reductions` (seule une preuve complète compte) : 3457 (question junk), 3566 et 3568 (retirer un sommet économise deg portes), 2962 (inégalité des « cores », définitions dans `Defs/Core.lean`), 2846 (bloqué en haut ⇒ deux niveaux), 5126 (échelon 2).
+- L-meta-1692 (PG(2,3), ≥ 64 portes) : 3 réductions, cœur ouvert R_meta_1963_1 h1 ; le PL des rectangles ne donne que 55,1 feuilles pour les formules.
+- « Graphe listé, 25 sommets, 48 arêtes », 58 portes (L-meta-9762 « il existe », 9763 « aucun ») : c'est l'incidence de PG(2,3) moins une droite (i ∈ 0..12 relié à 13 + (i + 9 + d) mod 13, d ∈ {0, 2, 3, 7}, sommet 25 retiré). Biparti, sans 4-cycle, τ = 12 (couplage), étoile 59 = k + 1. 553 indépendants maximaux + 48 arêtes = 601 entrées décisives : `lsg` (128 au plus) ne tourne pas. 9762 relâchée `statement_seems_false` sur le seul argument de la règle 4, non vérifié (Normal6).
+- Petersen (L-meta-651, ≥ 20 portes avec NOT) : 2371 et 1884, 3 réductions chacune, toutes sur « Petersen moins un sommet ≥ 16 portes » ✗ (meilleur fusionné : 14, L_meta_2319 ; 15 portes non-NOT, 6194).
+- G11 (L-meta-1342, 11 sommets, 16 arêtes, tau 7) : 6796 demande un circuit de 21 portes, relâchée `statement_seems_false`. Ces recherches existent dans les deux sens (« il existe » / « il n'existe pas ») : lire l'énoncé avant de choisir la raison.
+- Fausses ou déjà faites : 2773 (négation de 2772 fusionnée), 2081 et 949 (`statement_seems_false`), 2233 et 6375 (déjà fusionnées).
+
+Indices par calcul (pas des preuves), résultats dans `pequalnp-proofs/.pnp/research-L-meta-{6796,1884,5126}/RESULTS.txt` :
+- Recherche locale AND/OR : G11 à 22 portes trouvé sur 8 graines sur 8, à 21 portes rien en 6,9e10 évaluations ; Petersen à 20 portes trouvé sur 6/6, à 19 rien en 6,4e10. Avec NOT (plus faible) : rien à 18 ni 19 portes pour Petersen.
+- Recherche exhaustive : paw, bull, triangle + pendants, nœud papillon, net, C5 + pendant ont exactement |E| + tau − 1.
+- Tous les plus petits circuits de 12 petits graphes bipartis sans 4-cycle (chemins ≤ 7 sommets, étoiles, araignées, double étoile, C6) : zéro porte « dirty ». Les circuits optimaux ne sont pas uniques pour autant (ex. `(x1 ∨ x3) ∧ (x2 ∨ x0x1)` pour le chemin à 4 sommets).
+
+Outils de Hard, ici même (fils = vecteurs de bits sur les entrées décisives : arêtes et indépendants maximaux, ce qui suffit pour un circuit monotone) :
+- `./mincirc <n> <portes max> u1 v1 u2 v2 ...` : plus petit circuit AND/OR, exhaustif (n ≤ 6 ou 7, jusqu'à ~8 portes).
+- `./allmin <n> <taille minimale> u1 v1 ...` : TOUS les plus petits circuits, comptés par nombre de portes ET « dirty ».
+- `./lsg <portes> <graine> <secondes> <n> u1 v1 ...` : recherche locale AND/OR, n'importe quel graphe (jusqu'à 128 entrées décisives) ; un circuit trouvé est un témoin vérifiable par `decide`, « none » n'est qu'un indice. Calibrer d'abord à la taille connue.
+- `./lsn <portes> <graine> <secondes>` : idem avec NOT, tables complètes, Petersen + entrée libre NOT x0 codés en dur (cadre de L-meta-1884).
+
+Pièges de cette famille :
+- Le desk peut fermer une étape sous vous (beat 410, `desk/step` → `not_open`) : arrêter, annuler toute relâche programmée, supprimer le squelette (L-meta-4185).
+- Raison `rechecked` refusée hors étape de re-vérification ; une étape déjà fusionnée se relâche avec `other` (L-meta-2233).
+- `desk/stats` : `offerable_now − offerable_now_ordinary` compte aussi des étapes déjà rendues par notre compte ; seul le desk décide.
+- Une implication à hypothèse universelle se prouve gratuitement si l'hypothèse est fausse : chercher un témoin d'abord (essayé sur L-meta-5126, hypothèse apparemment vraie). Même avec un témoin, il faudrait prouver la minimalité d'un circuit dans un fichier qui n'importe que `PEqualNP.Defs`.
+- Installer un bail reçu de Master (« BAIL <id> <chemin du JSON> ») sans erreur de recopie : `python3 -I ~/Bureau/Boulot/penp/fleet-tools/take_lease.py <chemin du JSON> <racine du worktree>` écrit `.pnp/<id>.json` et le squelette comme `pnp.sh next` (mêmes contrôles de forme), n'écrase jamais un fichier existant et le signale (étape déjà fusionnée en amont, vue sur L-meta-2233). Lancer `tools/pnp.sh beat <id>` juste après.
+- Relâche à la 20e minute sans rester éveillé : une commande d'arrière-plan `sleep` jusqu'à l'heure, puis `tools/pnp.sh release`. Un redémarrage de l'app la tue aussi : au réveil, vérifier `desk/step` et le fichier de sortie avant de croire qu'elle est partie (L-meta-1770).
+- Forme constructive « a fan-in-two circuit of at most k gates with a one-input NOT gate computes f » : `Circuit.size` compte TOUTES les portes, NOT compris, et le mode 1 de `live` (NOT gratuit, portes signées a&~b) borne par en dessous les portes binaires. Si S (mode 1) ≥ k, il faut au moins S + 1 > k portes avec la NOT exigée : `statement_seems_false` (L-meta-16086 : m = S = 9, k = 9). Sinon chercher en mode 2 (NOT payante) à ≤ k.
+- Forme « at most k AND, OR, NOT gates, none dead, a NOT on a gate » (5 entrées, table T décimale) : `./livenot <hex 64 bits = T répété deux fois> 0x1f 2 0 3 <k+1> 26` (variante de `live` mode 2 : NOT payante, jamais sur une entrée, au moins une NOT exigée ; le modèle à fils vivants garantit « none dead »). `none` à k = `statement_seems_false` (L-meta-16096 : monotone 8, avec NOT sur porte 10, k = 9).
+- `live25` (source `live25.c`) : `live` sur les 25 points « un sommet de chaque côté » d'un biparti 5+5 (`Represents`, `RepSizeAtMost`). Entrées 0-4 = lignes, 5-9 = colonnes, point 5u+v. `./capmem ./live25 <masque hex 25 bits des arêtes> 0x3ff 0 0 2 12 26`. L-meta-18564 (C10, masque 9a28b2) : rien jusqu'à 11, 12 trouvé (4 s), relâché statement_seems_false (Normal4).
+- `live28` (source `live28.c`) : `live25` sur les 28 points de poids 1 ou 2 sur 7 entrées (points 0-6 = singletons, puis paires a<b en ordre lexicographique). `./capmem ./live28 <masque hex 28 bits> 0x7f 0 0 6 12 26`. L-meta-18625 (C7, masque a443080) : rien jusqu'à 9 (SAT satpm adapté : UNSAT à 7 et 8), 10 trouvé en < 1 s, relâché statement_seems_false (Normal).
+- Couverture des 0 de la matrice 21×21 du plan projectif PG(2,4) (5 uns par ligne, famille L-meta-93xx) : sur main ≥ 13 (L-meta-9338) et ≤ 15 (L-meta-9351, 15 rectangles dont des 6×6 = hyperovales). L-meta-9348 (≤ 14) : SAT direct (14 paires de masques) muet en 15 min ; set cover sur 25 235 rectangles fermés (fermeture de sous-ensembles ≤ 5 lignes/colonnes, aire max 36) muet en 15 min ; glouton aléatoire 20. Relâché out_of_time (Normal). Les maximaux tout-0 sont trop nombreux pour `rect_cover_9294.py`.
+- CP (cutting planes, `IsCPRefutation`) pour PHP n+1→n, schéma standard (axiomes + par trou chaîne S3 → S4 → … par mul/add/div + additions finales) : 3→2 = 19 (serré : main a ¬≤18, L-meta-9662), 4→3 = 52, 5→4 = 109 (45 axiomes + 4×14 + 8). Toute réfutation utilise les 45 axiomes (retirer une clause rend PHP satisfiable), donc ≥ 44 add fusionnants ; le schéma a 5 opérations non fusionnantes par trou (3 div + 2 mul) et je n'ai trouvé aucune variante à 4 (Q-élimination, cycles impairs, k=2 : toutes ≥ 5). L-meta-9695 (≤ 108) relâché statement_seems_false, non prouvé (Normal).
+
+## Couplage parfait de K6 (« A perfect matching in 6-vertex graphs, on 15 edge bits », voie Hard, 2026-11-26)
+
+L-meta-18856 (≤ 27 portes, le desk en tient 34) relâchée `out_of_time`. Toutes les factorisations retombent à 34-36 (sommet 0 : 34 ; paire 0/1 = forme bilinéaire A·H·B + e01·M1 : 34 ; bipartition 3+3 : 35 ; par coupe {uv|cd} : 35). Arêtes et couplages forment GQ(2,2) : chaque produit de 2 arêtes est dans un seul couplage, et un « rectangle » (a∨b)(c∨d) laisse passer des points faux. `pm/lsdnf.c` (recherche locale AND/OR sur une DNF monotone, points décisifs = minterms + maximaux faux, ici 106) ne retrouve même pas 34 : ne pas s'y fier. Modèles Lean 15 entrées par « column replay » sur main : L_meta_17419, L_meta_17124.
+
+## Crown rows "RepSizeAtMost (fun u v : Fin n => decide (u ≠ v)) s" (Normal2, 2026-11-26)
+- `Represents` is judged only on the n² inputs with one left and one right vertex on. There u ≠ v is exactly T2(z) with z_i = x_i ∨ y_i (two distinct indices on), so size ≤ n + size(T2 on n).
+- `lsg` on K_n gives T2: 3n − 5 for n = 4, 5, 6, 8 (n = 4 none at 6), and for n = 10 25 at once, none at 24 (6 × 180 s). The desk's 34 for n = 10: z on 0..8, 3 × 3 grid (rows 6 + cols 6), two T2(3) chains (4 + 4), OR, then index 9: z9, full OR, AND, OR. L-meta-18434 (33) not found, released statement_seems_false (not verified).
+- `lsr` (lsr.c, same search on the one-hot points of a Represents row: `./lsr G seed secs n m <n*m chars 0/1>`) is too weak at this size: none at 36 for n = 10.
+
+## Fano "double re-read" rows (L-meta-1479, Normal2, 2026-11-26)
+`fleet-tools/lsd G seed secs 14 <Fano edges>` = lsg plus the double re-read condition of the statement (bit-parallel over the 49 (p,l) pairs; distinct gate inputs enforced). Checker: `pequalnp-normal2/.pnp/dchk1479.py <log>` (full 2^14 table + re-read pairs). Plain lsg finds 27-gate incidence circuits in seconds but none of 4 had the property. lsd finds a 28-gate one with the property (seed 2, 4 min; pairs (3,3),(6,3)) — matches reminute's 28 — but nothing at 27 (3 × 240 s, best error 1 point). Released statement_seems_false (not proven).
+- RUP lower bounds on PHP (IsRUPRun): L_meta_9469 proves "no run of ≤ k+1 clauses" from a Delayer game (safe partial assignment surviving k queries). `fleet-tools/rup_delayer_game.py P H` computes the exact game value: 4→3: 2, 5→4: 5, 6→5: 9. So this method caps at ≤ 3, ≤ 6, ≤ 10 learned clauses; L-meta-9248 (5→4, ≤ 12) needs another argument, released `missing_lemma` (Normal5).
+- Resolution on PHP 5→4, "no refutation of ≤ k lines" (ladder L-pcx-158/160/162 merged for k = 89/99/109, then 164 = 119 and the rungs above; upper bound 159 in L_pcx_171): L_pcx_162 counts 45 axioms + Σ over the 4 holes of (col steps + non steps), with ≥ 16 per hole and the profile (16,16,16,16) excluded by a 380-line case analysis, total 110. k = 119 needs Σ ≥ 75 (18.75 per hole): the per-hole counting is already tight at 16, so every profile of sum ≤ 74 would need its own cross-hole argument. The known 159-line refutation costs 28 per hole (20 col + 8 non), so no hint either. No exhaustive search is possible (20 variables; PHP 4→3 itself is only known in [52, 59]). L-pcx-164 released `missing_lemma` after reading 162 (Normal6).
+
+## Rectangle-cover rows "covering the 0s of the 25×30 matrix needs > 15" (L-meta-10026, Normal2, 2026-11-26)
+The matrix is the point/line incidence of the affine plane AG(2,5) (25 points, 30 lines in 6 parallel classes). Zeros = 600 non-incidences.
+Max fooling set ≤ 10 (SAT UNSAT at 11..16, `pequalnp-normal2/.pnp/fool10026.py K`); max all-zero rectangle area = 54 (6 points × 9 lines, exact DFS `area10026.py`) → area bound only 12.
+Upper side: the per-class cover (complement of the identity on each class, 4 rectangles) gives 6×4 = 24; greedy over the 360 905 maximal rectangles also gives 24. SAT "cover with K" (direct encoding, or minicard over maximal rectangles) times out even at K = 20.
+So neither side is in reach locally: released out_of_time. A proof of "> 15" would need an LP-dual / fractional certificate stronger than fooling sets.
+
+### K6 perfect matching (L-meta-18856): SAT exact synthesis
+
+`pm/satpm.py k [sym] [not] [hint]` (run with `sat-venv/bin/python`, CaDiCaL 1.9.5).
+- Encoding: one-hot input selectors per gate, AND/OR type, constraints on the 106 decisive points (15 minterms + 91 maximal false points), which is exact for monotone circuits. `not` adds NOT gates and checks over all 2^15 inputs, CEGAR style.
+- `hint` fixes the known 34-gate circuit: SAT in 1 s, which validates the encoder.
+- Results, monotone with `sym`, 3.5G each: k=30 and k=27 both timed out after 60 min with no answer, so nothing either way.
+- Without `hint`, even k=34 found nothing in 10 min, so the 60-min timeouts say nothing about whether 27 exists.
+
+## L-gct-229 "6-dim level space of perm at I+J (4×4) keeping 65" (Normal2, 2026-11-26, released out_of_time)
+Facts (scripts in `pequalnp-normal2/.pnp/gct229*.py`): linear coefficients = 16 on the diagonal, 11 off; the quadratic part restricted to ker(linear) has full rank 15, so any level space has dim ≤ 7 (isotropic bound) — not conclusive. Generic count: a d-plane must kill 4+10+20+35 = 69 coefficients for d = 4 against 48 Grassmannian parameters, so already d ≥ 4 needs special structure.
+Dead ends: (a) two rows u, v: the form u^T Q v is nondegenerate (Q = [[0,5,3,3],[5,0,3,3],[3,3,0,2],[3,3,2,0]]) → ≤ 4; (b) the hook (row 0 + column 0), which gives 7 at J in L_gct_189, fails here because the cross block R has no zero entry (diagonal minors 5); (c) antisymmetric t kills the odd parts (perm(M^T) = perm(M)) but not the quadratic one. Row 0 from ker(m0) plus W on rows 1..3 works iff W keeps all four 3×3 column-minor permanents constant.
+Numeric LM search (complex echelon basis, random sample points) does not converge even at d = 4, too weak to decide.
+
+## L-gct-232 "no 3-dim space of symmetric 4×4 t keeps perm(J+t) = 24" (Normal2, 2026-11-26, released out_of_time)
+Symmetric coordinates (10): linear part 6 on the diagonal, 12 off it (both symmetric entries). The quadratic part on ker(linear) (9 dims) has full rank 9, so the isotropic bound only gives dim ≤ 4: no short proof by the quadratic form alone.
+Numerics (`pequalnp-normal2/.pnp/gct232.py <seed> <dim> <trials> [nfev]`, complex echelon basis, LM): dim 2 converges to 1e-13 at once; dim 3 stalls at a positive residual 0.0125–0.018 over 8 × 40 starts with bounded coefficients → the statement (non-existence) looks TRUE, but a proof needs the cubic and quartic parts (compare the 1300-line L_gct_216).
+
+## L-pcx-131 "BPHP(5 pigeons, 2 bits) has a Res(⊕) refutation of ≤ 111 lines" (Normal2, 2026-11-26, released out_of_time)
+Desk: its best is 112 (search, not exhaustive); merged lower bound: none ≤ 95 (L_pcx_130); merged upper: 158 (L_pcx_137, format model).
+Counting: all 40 axioms are necessary (drop one → satisfiable), so ≥ 40 axiom lines + ≥ 39 resolutions; 111 means ≤ 32 weakening lines. Two axioms of the same pair always resolve to a tautology, so a "pair differs" clause (x_i+x_j=1 ∨ y_i+y_j=1) costs 4 axioms + 4 weakenings + 3 resolutions (110 for all pairs: dead). Sequential pigeon-by-pigeon trees with raw axioms at the leaves need no weakening but ~195 resolutions. Useful parity fact: 4 distinct holes of F_2^2 sum to 0 in each bit. Needs a real DAG search to beat 112.
+
+## L-pcx-135 "BPHP(5,2) Res(⊕) ≤ 143 lines" (Normal2, 2026-11-26, released out_of_time; best reached 150)
+L_pcx_137 (158 ≤ bound) is PURE resolution: 40 axioms + 116 resolutions, no weakening. Desk's best for 143 is 144.
+Scheme tried (scripts `pequalnp-normal2/.pnp/pcx/dp*.py`, run without -I since they import dp.py):
+1. per pair (i,j) the "differ" clause D_ij = {x_i+x_j=1, y_i+y_j=1}: 4 axioms + 4 weakenings ({u=1,v=1,x_i≠a,y_i≠b}) + 3 resolutions on x_i, y_i = 11 lines, 110 for all pairs;
+2. refute the ten D_ij with a parity decision tree. A leaf is free when the path queried exactly u=0 and v=0 for its pair, or when its pair has only one leaf (weaken the 4 axioms straight to the leaf clause); otherwise +1 weakening.
+Exact DP over pair-sum queries: 24 internal nodes, 25 leaves, total 150. Even-size sums per coordinate: no better (158). Mixed x/y forms (255): DP times out after 20 min at 4G. Beating 144 needs DAG sharing or a smarter phase 1, not a bigger tree DP.
+- Resolution PHP 4→3 "no refutation ≤ k lines": main has ≥52 (L_pcx_150, potential Psi144 over 4096 hole-configurations, delta ≤ 416/step, fVal ≤ 32); k = 53 (L-pcx-151) and 55 (L-pcx-152) need a stronger potential or exact search, not a tweak of 150. L-pcx-152 released missing_lemma L-pcx-151 (Normal, 2026-11-26).
+## HARD (2026-11-26) Étapes hard en sous-agents parallèles : skill pequalnp-hard (.claude/skills/pequalnp-hard/SKILL.md), dossier work/<id>/, section Lessons à compléter après chaque tentative.
+## LEAN-LSP (2026-11-26) Serveur MCP lean-lsp (.mcp.json du dossier penp, lean-lsp-mcp 0.33 via uv tool) pour l'agent qui écrit la preuve : diagnostics/buts sans build complet ; lean_build désactivé. Cirbo (synthèse exacte de circuits) : work/tools/cirbo-venv, voir skill pequalnp-hard.
