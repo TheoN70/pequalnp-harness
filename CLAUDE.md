@@ -223,4 +223,6 @@ A new file in `fleet-tools/` appears by itself; a tool outside it is one line in
 3. ~~LRAT oleans builder~~ done 2026-11-26: `fleet-tools/lrat/build_lib.sh` (`--check` to see what is missing).
 4. `pause-watch` counts re-offered judged steps: count only ids absent from `verdicts.txt` and outside `SKIP_CATS`.
 5. ~~Package Cirbo and a portable `.mcp.json`~~ done 2026-11-26: `make -C fleet-tools cirbo`, `harness/.mcp.json`.
-6. Later: a pseudo-Boolean certificate checker (VeriPB-style) running in the Lean kernel, to get past the LRAT size limit.
+6. ~~Pseudo-Boolean (VeriPB) checker in Lean~~ measured 2026-11-26, not worth building: Exact's VeriPB proofs are 6-22x
+   LARGER than LRAT and Exact is far slower (details in `fleet-tools/lrat/README.md`). Revisit only with a solver that
+   reasons natively on cardinality and a much smaller proof on a real step.

@@ -22,3 +22,20 @@ Measured:
 Worth trying before a next attempt: rows = a small subset (size_of_unsat2 accepts any rows < 2^n;
 fewer rows = smaller formula), symmetry breaking on inputs, a smaller inlined library (only the
 lemmas `size_of_unsat2` needs).
+
+## Pseudo-Boolean proofs instead of LRAT? Measured 2026-11-26: no
+
+Same enc2 CNF (`circsat.py cnf 5 s 0xeaa8a880`; f needs 9 gates), CaDiCaL 2.1.2 `--lrat` vs Exact 2.2.1 (PB solver,
+VeriPB proof logging), one core each, raw untrimmed proofs:
+
+| s | LRAT | Exact, clauses | Exact + exactly-one on selector groups |
+|---|---|---|---|
+| 6 | 1.7 MB | 10.6 MB (6 s) | 13.1 MB |
+| 7 | 9.1 MB | 197 MB (108 s) | 226 MB |
+| 8 | 116 MB (92 s) | no answer in 30 min, proof already 3.3 GB | same, 3.9 GB |
+
+PB proofs are 6-22x larger and grow faster, so a VeriPB checker in Lean would not get past the 512 KiB limit. The
+proofs are sound (s = 6 checked by VeriPB 3.0.2: VERIFIED UNSATISFIABLE). Kit kept outside the repo in
+`work/tools/pb/`: Exact venv, VeriPB 3 built with cargo, `pbmeasure.py` (CNF -> OPB -> Exact with proof log) and
+`conv1to3.py` (Exact's 1.1 proof format -> VeriPB 3.0). The size limit needs fewer rows or symmetry breaking on
+inputs (see above), not another proof format.
