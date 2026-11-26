@@ -182,7 +182,7 @@ free ¬x0, L-meta-1884), `pm/lsdnf` (monotone DNF on ≤ 20 inputs). Usage line 
 matching; `rect_cover_9294.py` one rectangle-cover instance. **`circsat.py`**: the shared exact encoding of pequalnp's model (port of
 `LinkN.enc2`, same numbering, so UNSAT certificates replay in `PEqualNP.Library.LRAT`): `cnf` / `solve` / `decode`,
 `--rows` for CEGAR, `--no-not` for AND/OR only (search only); JSON output feeds `circuit2lean.py`; `--demo` checks
-minimum sizes against brute force on all 2- and 3-input functions. **Cirbo** (exact circuit synthesis by SAT, SPbSAT/cirbo
+minimum sizes against brute force on all 2- and 3-input functions. **`bfcirc`** (C, `make`): the second, independent method for every UNSAT (owner's rule: two methods): exhaustive DFS over AND/OR/NOT circuits of <= S gates on given rows (`bfcirc <n> <S> <table> [rows]`, `bfcirc --two-lit <n> <mask> <S>`, split `-k K -m M` over cores; prunings sound for minimal circuits), from Research-L-meta-24473's bf6.c; agrees with brute force on all 254 non-constant 3-input functions and with circsat on two-lit 203 (6 NONE, 7 FOUND). **Cirbo** (exact circuit synthesis by SAT, SPbSAT/cirbo
 commit ca19a9f, MIT) lives in `work/tools/cirbo-src` + `work/tools/cirbo-venv`, installed by `make -C fleet-tools cirbo`
 (pinned commit and packages, maj3 self-check; the wheel does not build, so a `.pth` points at the source). pequalnp's model: `basis=[Operation.lnot_, Operation.and_, Operation.or_]` (NOT counts as a
 gate). Cirbo's row j puts input 0 on the most significant bit: build its table by applying f to the input vector (as `work/*/cirbo/run.py` does) and no remap is needed; `circuit2lean.py --reverse-inputs` only for a raw pequalnp table.
