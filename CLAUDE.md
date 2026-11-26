@@ -207,7 +207,7 @@ search), `restrict.py` (signed size of each restriction of a 6-input table, via 
 | `n2_triage6.sh <wt> <id> [json]` | 6-input "AND/OR one no larger" step: prime implicants, M, exact signed search to M−1 |
 | `take_onenot8.sh <wt> <id> <json>` | 8-vertex one-NOT negation: install, beat, twin, `liveg`, `livegpx` |
 | `cube.py split <f.cnf> <K> <dir> [--vars ...]` / `run <dir> <cores> [-m 2G] [--lrat]` / `status <dir>` | cube and conquer for one hard CNF: 2^K cubes (K split variables, the most frequent by default), one copy of the formula on disk, one cube per core picked by `slots`, under capmem, CaDiCaL of the Lean toolchain; first SAT stops the rest; rerun skips finished cubes; `--lrat` writes a text LRAT per cube (the Lean cover lemma joining them is not written yet) |
-| `slots [N]` | load per core over 1 s and the solvers running against the budget of 14; `slots N` prints N free cores for `taskset -c` (cores 14-15 never), exit 1 if no room: `taskset -c "$(fleet-tools/slots 4)" fleet-tools/capmem -m 6G <cmd>` |
+| `slots [N]` | load per core over 1 s and the solvers running against the budget of 14; `slots N` prints N free cores for `taskset -c` (cores 14-15 never), exit 1 if no room: `taskset -c "$(fleet-tools/slots 4)" fleet-tools/capmem -m 6G <cmd>`; `--range 7-13` (or env `SLOTS_RANGE`) keeps a Research session in its half |
 | `category.py <lease.json>` / `--title` | coarse category: upper, lower, reshape, neg, proof, other (prefix `cut/`); feeds `SKIP_CATS` and results.tsv |
 | `master/twin_merged.py <lease.json>` | exit 0 when a negation's twin (id − 1) is merged upstream with exactly its body |
 

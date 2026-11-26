@@ -4,6 +4,8 @@
   fleet-tools/slots          table: load of each core over 1 s, the solvers running, the budget left
   fleet-tools/slots N        prints N free cores as a taskset list (a contiguous range when one exists), e.g. 4-7;
                              exit 1 with the reason on stderr when fewer are free or the budget would be exceeded
+  fleet-tools/slots N --range 7-13   only cores in that range (two Research sessions: each keeps its half);
+                             env SLOTS_RANGE=7-13 does the same
   fleet-tools/slots --demo   self-check of the choice logic
 
   taskset -c "$(fleet-tools/slots 4)" fleet-tools/capmem -m 6G <cmd>     # fails before starting anything if no room
@@ -72,9 +74,9 @@ def compact(cores):
     return ",".join(out)
 
 
-def choose(load, used, n, ncpu):
+def choose(load, used, n, ncpu, allowed=None):
     """N cores among the free ones, a contiguous run if possible (lowest first), else the least loaded. Error text if none."""
-    free = sorted(c for c in range(ncpu - 2) if load.get(c, 100) < BUSY)
+    free = sorted(c for c in range(ncpu - 2) if load.get(c, 100) < BUSY and (allowed is None or c in allowed))
     if used + n > BUDGET:
         return None, f"budget: {used} solvers running + {n} > {BUDGET}"
     if n > len(free):
@@ -95,17 +97,28 @@ def demo():
     assert choose(idle, 12, 3, 16)[0] is None                    # 12 + 3 > 14
     assert choose(idle | {c: 99 for c in range(12)}, 0, 3, 16)[0] is None  # 12, 13 free; 14, 15 never
     assert compact([0, 1, 2, 5, 7, 8]) == "0-2,5,7-8"
+    assert choose(idle, 0, 3, 16, set(range(7, 14))) == ("7-9", None)
+    assert choose(idle | {c: 99 for c in range(7, 12)}, 5, 3, 16, set(range(7, 14)))[0] is None  # 12, 13 left
+    assert parse_range("7-13") == set(range(7, 14)) and parse_range("0-2,5") == {0, 1, 2, 5}
     print("demo ok")
+
+
+def parse_range(r):
+    return {c for part in r.split(",") for c in range(int(part.split("-")[0]), int(part.split("-")[-1]) + 1)}
 
 
 def main(argv):
     if argv[1:] == ["--demo"]:
         return demo()
+    rng = os.environ.get("SLOTS_RANGE")
+    if "--range" in argv:
+        i = argv.index("--range"); rng = argv[i + 1]; argv = argv[:i] + argv[i + 2:]
+    allowed = parse_range(rng) if rng else None
     ncpu = os.cpu_count()
     load, solvers = sample()
     used = sum(max(1, round(p / 100)) for _, _, p, _ in solvers)
     if len(argv) == 2 and argv[1].isdigit() and int(argv[1]) > 0:
-        cores, why = choose(load, used, int(argv[1]), ncpu)
+        cores, why = choose(load, used, int(argv[1]), ncpu, allowed)
         if why:
             sys.exit(f"slots: no room: {why}")
         print(cores)
