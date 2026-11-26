@@ -9,9 +9,10 @@ Usage: python3 -I rep_lower_gen.py <lease.json> [-o out.lean] [--drop-zero p,..]
 Shapes: 5x5 (the template as is) and 4x5 (Research-L-meta-21063's substitutions, work/L-meta-21063/lean/gen.py,
 checked: 21062 and 21063 compile, 109 KB, 17 s, 4.4 GB). Other shapes are refused: the template's 5s and 10s mean
 several things (rows, columns, wires) and each shape needs its substitutions checked by hand.
-k: the first argument of `lower`; the in-kernel search depth is k + 1 - (n + m) (0 below n + m - 1). Refused when
-k > n + m (deeper searches are untested) or when some row or column does not serve (the argument needs every input:
-each row has a 1 in a column where another row has a 0, each column a 1 in a row where another column has a 0), or
+k: the first argument of `lower`. R = the inputs that serve (row u: a 1 where another row has a 0; columns
+likewise); the others may stay unread: `lower k c R DL` checks chkM (k + 1 - |D|) for every read set D ⊇ R
+(Research-L-meta-21062, work/one-a-side-4x5/gen2.py: 20970, 21033 with DL = [503, 511]). Refused when k > |R| + 1 or
+k > n + m (deeper searches untested), when no input serves, or
 when OO or ZZ has more than 16 points (the bit-matrix layout). More than 16 zero-points: --drop-zero leaves some
 out of ZZ (any subset of the zeros is sound, ZZ_ok checks each listed one; whether the in-kernel search still
 succeeds is Lean's call: Research-L-meta-21267 dropped point 4 of 31523873, 17 zeros, and it compiled). Lean is the judge: compile it (`lake env lean`, ~5 GB,
@@ -28,12 +29,11 @@ STMT = re.compile(r"(?:¬\s*\(?\s*)?PEqualNP\.Represents\.RepSizeAtMost \(fun (?
 
 def check_mask(n, m, M, drop=()):
     A = [[M >> (m * u + v) & 1 for v in range(m)] for u in range(n)]
-    for u in range(n):
-        if not any(A[u][v] and not A[w][v] for v in range(m) for w in range(n)):
-            sys.exit(f"row u{u} does not serve (no 1 where another row has a 0): the argument needs every input")
-    for v in range(m):
-        if not any(A[u][v] and not A[u][x] for u in range(n) for x in range(m)):
-            sys.exit(f"column v{v} does not serve (no 1 where another column has a 0): the argument needs every input")
+    # R: the inputs that serve (row u: a 1 where another row has a 0; column v likewise); the others may be unread
+    R = [u for u in range(n) if any(A[u][v] and not A[w][v] for v in range(m) for w in range(n))]
+    R += [n + v for v in range(m) if any(A[u][v] and not A[u][x] for u in range(n) for x in range(m))]
+    if not R:
+        sys.exit("no input serves (empty or complete graph): the argument does not apply")
     OO = [p for p in range(n * m) if M >> p & 1]
     if any(p >= n * m or M >> p & 1 for p in drop):
         sys.exit(f"--drop-zero {list(drop)}: each must be a zero-point of the mask")
@@ -41,7 +41,7 @@ def check_mask(n, m, M, drop=()):
     if len(OO) > 16 or len(ZZ) > 16:
         sys.exit(f"{len(OO)} one-points, {len(ZZ)} zero-points kept: the template holds at most 16 of each"
                  + (" (leave zeros out with --drop-zero p,..)" if len(ZZ) > 16 else ""))
-    return OO, ZZ
+    return OO, ZZ, R
 
 
 def to_4x5(t, mask):
@@ -94,7 +94,9 @@ def generate(n, m, M, k, ident, stmt=None, drop=()):
     N, D = n + m, 2 ** (n + m) - 1
     if not 1 <= k <= N:
         sys.exit(f"k = {k}: supported 1 <= k <= n + m = {N} (deeper in-kernel searches are untested)")
-    OO, ZZ = check_mask(n, m, M, drop)
+    OO, ZZ, R = check_mask(n, m, M, drop)
+    if k + 1 > len(R) + 2:
+        sys.exit(f"k = {k} > |R| + 1 = {len(R) + 1} ({len(R)} inputs serve): beyond the recipe")
     src = open(TEMPLATE).read()
     head, tail = src.split("def OO : List ℕ :=", 1)
     rest = tail.split("\n", 2)[2]  # drop the template's OO rest and ZZ line
@@ -121,7 +123,24 @@ def generate(n, m, M, k, ident, stmt=None, drop=()):
         last = re.search(r"theorem PEqualNP\.Outside\.%s : (.*) := by\n" % re.escape(ident), out)
         assert last, "final theorem not found"
         out = out[:last.start(1)] + stmt + out[last.end(1):]
-    return out
+    # Rebuild the tail for R (all inputs: the template's own tail): `lower k c R DL` with DL = every read set D ⊇ R,
+    # one kernel check chkM (k + 1 - |D|) per D (Research-L-meta-21062, work/one-a-side-4x5/gen2.py).
+    ns = f"PEqualNP.Outside.{ident}"
+    final = re.search(r"theorem %s : (.*) := by\n" % re.escape(ns), out)[1]
+    cut = out.index(f"theorem c{D} : chkM {depth} lf {N} {D} = true := by decide +kernel\n")
+    c = sum(1 << i for i in R)
+    DL = [x for x in range(D + 1) if x & c == c]
+    chks = "".join(f"theorem c{x} : chkM {max(0, k + 1 - bin(x).count('1'))} lf {N} {x} = true := by decide +kernel\n"
+                   for x in DL)
+    tail = (f"\nend {ns}\n\ntheorem {ns} : {final} := by\n"
+            f"  refine {ns}.lower {k} {c} {{{', '.join(map(str, R))}}} [{', '.join(map(str, DL))}] (by decide +kernel) (by decide +kernel) (by decide)\n"
+            f"    (by decide) (by decide +kernel) (fun i hi => ?_) (by decide) (by decide +kernel) (by decide +kernel) ?_\n"
+            f"  · exact Nat.testBit_lt_two_pow (lt_of_lt_of_le (by norm_num : {c} < 2 ^ {N})\n"
+            f"      (Nat.pow_le_pow_right (by norm_num) hi))\n"
+            f"  · intro D hD\n"
+            f"    simp only [List.mem_cons, List.not_mem_nil, or_false] at hD\n"
+            f"    rcases hD with {' | '.join(['rfl'] * len(DL))}\n" + "".join(f"    · exact {ns}.c{x}\n" for x in DL))
+    return out[:cut] + chks + tail
 
 
 def main(a):
