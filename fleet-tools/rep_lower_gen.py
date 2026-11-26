@@ -7,9 +7,10 @@ Usage: python3 -I rep_lower_gen.py <lease.json> [-o out.lean] [--drop-zero p,..]
        python3 -I rep_lower_gen.py --raw <n> <m> <M> <k> <ident> [-o out.lean] [--drop-zero p,..]
          e.g. --raw 4 5 104317 9 L_meta_21063;  --raw 5 5 31523873 9 L_meta_21267 --drop-zero 4
 
-Shapes: 5x5 (the template as is) and 4x5 (Research-L-meta-21063's substitutions, work/L-meta-21063/lean/gen.py,
-checked: 21062 and 21063 compile, 109 KB, 17 s, 4.4 GB). Other shapes are refused: the template's 5s and 10s mean
-several things (rows, columns, wires) and each shape needs its substitutions checked by hand.
+Shapes: 5x5 (the template as is) and n x 5 for n = 3, 4 (Research-L-meta-21063's 4x5 substitutions generalised to n
+rows by Research-L-meta-20500, work/L-meta-20500/lean/gen3.py; checked: 21062, 21063 (4x5) and 20500 (3x5) compile,
+~107-109 KB, ~17 s, 4.4 GB). Other shapes (4x6, ...) are refused: the template's 5s mean both rows and columns
+(the point index 5u+v, Fin 5 on both sides), so a column count other than 5 needs its substitutions checked by hand.
 k: the first argument of `lower`. R = the inputs that serve (row u: a 1 where another row has a 0; columns
 likewise); the others may stay unread: `lower k c R DL` checks chkM (k + 1 - |D|) for every read set D ⊇ R
 (Research-L-meta-21062, work/one-a-side-4x5/gen2.py: 20970, 21033 with DL = [503, 511]). Refused when k > |R| + 1 or
@@ -45,53 +46,55 @@ def check_mask(n, m, M, drop=()):
     return OO, ZZ, R
 
 
-def to_4x5(t, mask):
-    """Research's 5x5 -> 4x5 substitutions (work/L-meta-21063/lean/gen.py), each counted. 10 (wires) -> 9, 25 -> 20."""
-    def sub(a, b, n=None):
+def to_nx5(t, mask, n):
+    """to_4x5 of rep_lower_gen.py with 4 -> n rows (Research-L-meta-20500, n = 3). Wires 10 -> n+5, points 25 -> 5n."""
+    N = n + 5
+    def sub(a, b, c_=None):
         nonlocal t
         c = t.count(a)
-        assert c > 0 and (n is None or c == n), (a, c)
+        assert c > 0 and (c_ is None or c == c_), (a, c)
         t = t.replace(a, b)
     if "def X" in t:
         sub("oneEach (⟨p / 5 % 5, by omega⟩ : Fin 5) (⟨p % 5, by omega⟩ : Fin 5)",
-            "oneEach (⟨p / 5 % 4, by omega⟩ : Fin 4) (⟨p % 5, by omega⟩ : Fin 5)", 1)
+            f"oneEach (⟨p / 5 % {n}, by omega⟩ : Fin {n}) (⟨p % 5, by omega⟩ : Fin 5)", 1)
+        X = [31 << 5 * u for u in range(n)] + [sum(1 << 5 * u + v for u in range(n)) for v in range(5)]
         sub("[31, 992, 31744, 1015808, 32505856, 1082401, 2164802, 4329604, 8659208, 17318416]",
-            "[31, 992, 31744, 1015808, 33825, 67650, 135300, 270600, 541200]", 1)
+            "[" + ", ".join(map(str, X)) + "]", 1)
         sub("def MM : ℕ := 3247934", "def MM : ℕ := %d" % mask, 1)
         sub("def ro (v : Fin 5) : List Bool := List.replicate 5 false ++",
-            "def ro (v : Fin 5) : List Bool := List.replicate 4 false ++", 1)
+            f"def ro (v : Fin 5) : List Bool := List.replicate {n} false ++", 1)
         sub("def lo (u : Fin 5) : List Bool := List.ofFn (fun j : Fin 5 => decide (j = u))",
-            "def lo (u : Fin 4) : List Bool := List.ofFn (fun j : Fin 4 => decide (j = u))", 1)
-        sub("theorem lo_len : ∀ v : Fin 5,", "theorem lo_len : ∀ v : Fin 4,", 1)
-        sub("i ≠ 5 + (v : ℕ)", "i ≠ 4 + (v : ℕ)", 1)
-        sub("(hv : 5 + (v : ℕ) ∉ D)", "(hv : 4 + (v : ℕ) ∉ D)", 1)
-        sub("C.eval x = C.eval y) (u : Fin 5)", "C.eval x = C.eval y) (u : Fin 4)", 1)
+            f"def lo (u : Fin {n}) : List Bool := List.ofFn (fun j : Fin {n} => decide (j = u))", 1)
+        sub("theorem lo_len : ∀ v : Fin 5,", f"theorem lo_len : ∀ v : Fin {n},", 1)
+        sub("i ≠ 5 + (v : ℕ)", f"i ≠ {n} + (v : ℕ)", 1)
+        sub("(hv : 5 + (v : ℕ) ∉ D)", f"(hv : {n} + (v : ℕ) ∉ D)", 1)
+        sub("C.eval x = C.eval y) (u : Fin 5)", f"C.eval x = C.eval y) (u : Fin {n})", 1)
     else:
         sub("(hrow : ∀ u : Fin 5, (u : ℕ) ∈ R → ∃ (u' : Fin 5) (v : Fin 5),",
-            "(hrow : ∀ u : Fin 4, (u : ℕ) ∈ R → ∃ (u' : Fin 4) (v : Fin 5),", 1)
+            f"(hrow : ∀ u : Fin {n}, (u : ℕ) ∈ R → ∃ (u' : Fin {n}) (v : Fin 5),", 1)
         sub("(hcol : ∀ v : Fin 5, 5 + (v : ℕ) ∈ R → ∃ (v' : Fin 5) (u : Fin 5),",
-            "(hcol : ∀ v : Fin 5, 4 + (v : ℕ) ∈ R → ∃ (v' : Fin 5) (u : Fin 4),", 1)
-        sub("by_cases h4 : i < 5", "by_cases h4 : i < 4", 1)
-        sub("have e : 5 + (i - 5) = i", "have e : 4 + (i - 4) = i", 1)
-        sub("⟨i - 5, by omega⟩", "⟨i - 4, by omega⟩")
-        sub("hrep ⟨p / 5 % 5, by omega⟩ ⟨p % 5, by omega⟩", "hrep ⟨p / 5 % 4, by omega⟩ ⟨p % 5, by omega⟩", 1)
-        sub("5 * (p / 5 % 5) + p % 5 = p", "5 * (p / 5 % 4) + p % 5 = p", 1)
-        sub("Fin 10", "Fin 9", 1)
-        sub("{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}", "{0, 1, 2, 3, 4, 5, 6, 7, 8}", 1)
+            f"(hcol : ∀ v : Fin 5, {n} + (v : ℕ) ∈ R → ∃ (v' : Fin 5) (u : Fin {n}),", 1)
+        sub("by_cases h4 : i < 5", f"by_cases h4 : i < {n}", 1)
+        sub("have e : 5 + (i - 5) = i", f"have e : {n} + (i - {n}) = i", 1)
+        sub("⟨i - 5, by omega⟩", f"⟨i - {n}, by omega⟩")
+        sub("hrep ⟨p / 5 % 5, by omega⟩ ⟨p % 5, by omega⟩", f"hrep ⟨p / 5 % {n}, by omega⟩ ⟨p % 5, by omega⟩", 1)
+        sub("5 * (p / 5 % 5) + p % 5 = p", f"5 * (p / 5 % {n}) + p % 5 = p", 1)
+        sub("Fin 10", f"Fin {N}", 1)
+        sub("{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}", "{" + ", ".join(map(str, range(N))) + "}", 1)
         sub("(3247934 : ℕ)", "(%d : ℕ)" % mask, 1)
-        sub("fun u v : Fin 5 =>", "fun (u : Fin 4) (v : Fin 5) =>", 1)
-    t = t.replace("Fin 5 → Fin 5 → Bool", "Fin 4 → Fin 5 → Bool")
-    t = t.replace("(u : Fin 5) (v : Fin 5)", "(u : Fin 4) (v : Fin 5)")
-    t = re.sub(r"\b25\b", "20", t)
-    t = re.sub(r"\b10\b", "9", t)
-    t = re.sub(r"\b1024\b", "512", t)
-    t = re.sub(r"\b1023\b", "511", t)
-    return t.replace("c1023", "c511")
+        sub("fun u v : Fin 5 =>", f"fun (u : Fin {n}) (v : Fin 5) =>", 1)
+    t = t.replace("Fin 5 → Fin 5 → Bool", f"Fin {n} → Fin 5 → Bool")
+    t = t.replace("(u : Fin 5) (v : Fin 5)", f"(u : Fin {n}) (v : Fin 5)")
+    t = re.sub(r"\b25\b", str(5 * n), t)
+    t = re.sub(r"\b10\b", str(N), t)
+    t = re.sub(r"\b1024\b", str(2 ** N), t)
+    t = re.sub(r"\b1023\b", str(2 ** N - 1), t)
+    return t.replace("c1023", f"c{2 ** N - 1}")
 
 
 def generate(n, m, M, k, ident, stmt=None, drop=()):
-    if (n, m) not in ((5, 5), (4, 5)):
-        sys.exit(f"shape {n}x{m} not supported (only 5x5 and 4x5, whose substitutions were checked)")
+    if not (m == 5 and 3 <= n <= 5):
+        sys.exit(f"shape {n}x{m} not supported (only 3x5, 4x5 and 5x5, whose substitutions were checked)")
     N, D = n + m, 2 ** (n + m) - 1
     if not 1 <= k <= N:
         sys.exit(f"k = {k}: supported 1 <= k <= n + m = {N} (deeper in-kernel searches are untested)")
@@ -104,14 +107,14 @@ def generate(n, m, M, k, ident, stmt=None, drop=()):
     if (n, m) == (5, 5):
         fix = lambda t: t.replace("def MM : ℕ := 3247934", f"def MM : ℕ := {M}").replace("(3247934 : ℕ)", f"({M} : ℕ)")
     else:
-        fix = lambda t: to_4x5(t, M)
+        fix = lambda t: to_nx5(t, M, n)
     out = fix(head) + f"def OO : List ℕ := {OO}\ndef ZZ : List ℕ := {ZZ}\n" + fix(rest)
-    if (n, m) == (4, 5):
+    if n < 5:
         out = out.replace("""-- This file is the proof of L-meta-9195 by tb-16 (same repository) with the mask, the list OO of its
 -- one-points and the list ZZ of its zero-points replaced; the argument is unchanged.""",
                           """-- This file is the merged proof of L-meta-9291 (itself L-meta-9195 by tb-16, same repository) moved
--- from 5 x 5 to 4 x 5: 9 input wires and 20 points instead of 10 and 25, with the mask, the list OO
--- of its one-points and the list ZZ of its zero-points replaced; the argument is unchanged.""")
+-- from 5 x 5 to %d x 5: %d input wires and %d points instead of 10 and 25, with the mask, the list OO
+-- of its one-points and the list ZZ of its zero-points replaced; the argument is unchanged.""" % (n, n + 5, 5 * n))
     depth = max(0, k + 1 - N)
     for a, b in ((f".lower {N} {D} {{", f".lower {k} {D} {{"), (f"chkM 1 lf {N} {D} = true", f"chkM {depth} lf {N} {D} = true")):
         assert out.count(a) == 1, (a, out.count(a))
@@ -228,8 +231,8 @@ def main(a):
             st = "¬ " + st
         mt = STMT.fullmatch(st)
         n_, m_ = (int(mt[1]), int(mt[2])) if mt and mt[1] else (int(mt[3]), int(mt[3])) if mt else (0, 0)
-        if is_false:  # grab.sh --skip-false-siblings: exit 0 = false by the recipe (k <= |R|), 1 = keep it
-            if not mt or int(mt[5]) != m_ or (n_, m_) not in ((5, 5), (4, 5)):
+        if is_false:  # grab.sh --skip-false-siblings: exit 0 = shown false (shown_false), 1 = keep it
+            if not mt or int(mt[5]) != m_ or not (m_ == 5 and 3 <= n_ <= 5):
                 sys.exit(1)
             M_, k_ = int(mt[4]), int(mt[6])
             R = serving(n_, m_, M_)
