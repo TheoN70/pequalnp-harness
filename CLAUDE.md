@@ -155,7 +155,7 @@ gate). Cirbo's row j puts input 0 on the most significant bit: build its table b
 ### Lower bounds by LRAT certificate (`fleet-tools/lrat/`, README there)
 
 `lower.sh <worktree> <n> <s> <table> <out.lean> [module]` proves "every AND/OR/NOT circuit for f has ≥ s+1 gates"
-via CaDiCaL LRAT replayed by `PEqualNP.Library.LRAT`; `lrat2lean.py` packs the certificate, `inline.py` inlines the
+via CaDiCaL LRAT replayed by `PEqualNP.Library.LRAT` (compiled in the shared clone by `build_lib.sh`); `lrat2lean.py` packs the certificate, `inline.py` inlines the
 library for steps that may import only `PEqualNP.Defs`. Works for n ≤ 4; n = 5 / 9 gates gives 47 MB (limit 512 KiB).
 
 ### Lean proof generators (from merged templates)
@@ -219,7 +219,7 @@ A new file in `fleet-tools/` appears by itself; a tool outside it is one line in
 
 1. ~~Circuit → Lean file~~ done 2026-11-26: `fleet-tools/circuit2lean.py` (regenerates merged L_meta_1001; maj3 positive test). Left: cofactor splitting of the `decide` past n ~ 12.
 2. ~~Shared SAT encoder~~ done 2026-11-26: `fleet-tools/circsat.py` (enc2 port from L-meta-17389, CLI, decoder, brute-force check).
-3. Builder of the `PEqualNP.Library.LRAT` oleans in the shared clone, without breaking lanes.
+3. ~~LRAT oleans builder~~ done 2026-11-26: `fleet-tools/lrat/build_lib.sh` (`--check` to see what is missing).
 4. `pause-watch` counts re-offered judged steps: count only ids absent from `verdicts.txt` and outside `SKIP_CATS`.
 5. Package Cirbo (`make cirbo`, pinned to ca19a9f) and a portable `.mcp.json` (`"command": "lean-lsp-mcp"`).
 6. Later: a pseudo-Boolean certificate checker (VeriPB-style) running in the Lean kernel, to get past the LRAT size limit.

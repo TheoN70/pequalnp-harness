@@ -5,7 +5,10 @@ circuit (NOT counted, HasCircuitSize) for the n-input f with truth table <table>
 Lean dumps `LinkN.enc2` (the NOT encoding; `Defs.LratEncoding.enc2` is AND/OR only, wrong one),
 the toolchain's CaDiCaL (`elan which lean`/../cadical, 2.1.2, `--lrat`) refutes it, `lrat2lean.py`
 trims the proof (backward pass) and packs it for `checkW` of PEqualNP.Library.LRAT.Checker.
-The worktree needs `lake build PEqualNP.Library.LRAT.LinkN2` once (~10 min).
+The worktree needs the library compiled once: `fleet-tools/lrat/build_lib.sh` (shared clone by default; `--check`
+says what is missing). It builds all `PEqualNP.Library.LRAT.*` modules on core 15 under capmem 6G, refuses while
+another lake/lean works in the clone or the library sources are modified, and ends with an import smoke test (first build 2026-11-26: 9 modules + Shannon, 193 s on one core).
+After an upstream update of the clone, run it again (only changed modules rebuild).
 
 Measured:
 - n=4, s=3, table 2184 (L-meta-9550): 1594 clauses, 12 KB file, kernel check 6 s, axioms ok.
