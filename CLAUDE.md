@@ -58,7 +58,8 @@ Lanes reply to `Master`; tool requests go to `Harness`.
       .claude/skills -> ../harness/skills
       .mcp.json                lean-lsp MCP server (see "Lean tooling")
       pequalnp-proofs/         shared clone (origin = TheoN70 fork, upstream = open-goat); lane Hard's worktree; owns lean/.lake/packages
-      pequalnp-normal*/        one detached worktree per lane, .lake/packages symlinked to the shared clone's
+      pequalnp-normal*/        one detached worktree per lane (removed 2026-11-26 in single-problem mode: the lane skill recreates it;
+                               old .pnp/ folders, kept proofs and scripts in master/backup-proofs/lanes/<lane>/)
       work/<id>/               scratch of a hard step (STATUS.md, FOUND.txt, REFUTED.txt, sub-folders per method)
       work/tools/              Cirbo source + venv
       results.tsv              one line per lease (Master writes it)

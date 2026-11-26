@@ -133,13 +133,13 @@ L-meta-18856 (≤ 27 portes, le desk en tient 34) relâchée `out_of_time`. Tout
 - `lsr` (lsr.c, same search on the one-hot points of a Represents row: `./lsr G seed secs n m <n*m chars 0/1>`) is too weak at this size: none at 36 for n = 10.
 
 ## Fano "double re-read" rows (L-meta-1479, Normal2, 2026-11-26)
-`fleet-tools/lsd G seed secs 14 <Fano edges>` = lsg plus the double re-read condition of the statement (bit-parallel over the 49 (p,l) pairs; distinct gate inputs enforced). Checker: `pequalnp-normal2/.pnp/dchk1479.py <log>` (full 2^14 table + re-read pairs). Plain lsg finds 27-gate incidence circuits in seconds but none of 4 had the property. lsd finds a 28-gate one with the property (seed 2, 4 min; pairs (3,3),(6,3)) — matches reminute's 28 — but nothing at 27 (3 × 240 s, best error 1 point). Released statement_seems_false (not proven).
+`fleet-tools/lsd G seed secs 14 <Fano edges>` = lsg plus the double re-read condition of the statement (bit-parallel over the 49 (p,l) pairs; distinct gate inputs enforced). Checker: `master/backup-proofs/lanes/normal2/dchk1479.py <log>` (full 2^14 table + re-read pairs). Plain lsg finds 27-gate incidence circuits in seconds but none of 4 had the property. lsd finds a 28-gate one with the property (seed 2, 4 min; pairs (3,3),(6,3)) — matches reminute's 28 — but nothing at 27 (3 × 240 s, best error 1 point). Released statement_seems_false (not proven).
 - RUP lower bounds on PHP (IsRUPRun): L_meta_9469 proves "no run of ≤ k+1 clauses" from a Delayer game (safe partial assignment surviving k queries). `fleet-tools/rup_delayer_game.py P H` computes the exact game value: 4→3: 2, 5→4: 5, 6→5: 9. So this method caps at ≤ 3, ≤ 6, ≤ 10 learned clauses; L-meta-9248 (5→4, ≤ 12) needs another argument, released `missing_lemma` (Normal5).
 - Resolution on PHP 5→4, "no refutation of ≤ k lines" (ladder L-pcx-158/160/162 merged for k = 89/99/109, then 164 = 119 and the rungs above; upper bound 159 in L_pcx_171): L_pcx_162 counts 45 axioms + Σ over the 4 holes of (col steps + non steps), with ≥ 16 per hole and the profile (16,16,16,16) excluded by a 380-line case analysis, total 110. k = 119 needs Σ ≥ 75 (18.75 per hole): the per-hole counting is already tight at 16, so every profile of sum ≤ 74 would need its own cross-hole argument. The known 159-line refutation costs 28 per hole (20 col + 8 non), so no hint either. No exhaustive search is possible (20 variables; PHP 4→3 itself is only known in [52, 59]). L-pcx-164 released `missing_lemma` after reading 162 (Normal6).
 
 ## Rectangle-cover rows "covering the 0s of the 25×30 matrix needs > 15" (L-meta-10026, Normal2, 2026-11-26)
 The matrix is the point/line incidence of the affine plane AG(2,5) (25 points, 30 lines in 6 parallel classes). Zeros = 600 non-incidences.
-Max fooling set ≤ 10 (SAT UNSAT at 11..16, `pequalnp-normal2/.pnp/fool10026.py K`); max all-zero rectangle area = 54 (6 points × 9 lines, exact DFS `area10026.py`) → area bound only 12.
+Max fooling set ≤ 10 (SAT UNSAT at 11..16, `master/backup-proofs/lanes/normal2/fool10026.py K`); max all-zero rectangle area = 54 (6 points × 9 lines, exact DFS `area10026.py`) → area bound only 12.
 Upper side: the per-class cover (complement of the identity on each class, 4 rectangles) gives 6×4 = 24; greedy over the 360 905 maximal rectangles also gives 24. SAT "cover with K" (direct encoding, or minicard over maximal rectangles) times out even at K = 20.
 So neither side is in reach locally: released out_of_time. A proof of "> 15" would need an LP-dual / fractional certificate stronger than fooling sets.
 
@@ -152,13 +152,13 @@ So neither side is in reach locally: released out_of_time. A proof of "> 15" wou
 - Without `hint`, even k=34 found nothing in 10 min, so the 60-min timeouts say nothing about whether 27 exists.
 
 ## L-gct-229 "6-dim level space of perm at I+J (4×4) keeping 65" (Normal2, 2026-11-26, released out_of_time)
-Facts (scripts in `pequalnp-normal2/.pnp/gct229*.py`): linear coefficients = 16 on the diagonal, 11 off; the quadratic part restricted to ker(linear) has full rank 15, so any level space has dim ≤ 7 (isotropic bound) — not conclusive. Generic count: a d-plane must kill 4+10+20+35 = 69 coefficients for d = 4 against 48 Grassmannian parameters, so already d ≥ 4 needs special structure.
+Facts (scripts in `master/backup-proofs/lanes/normal2/gct229*.py`): linear coefficients = 16 on the diagonal, 11 off; the quadratic part restricted to ker(linear) has full rank 15, so any level space has dim ≤ 7 (isotropic bound) — not conclusive. Generic count: a d-plane must kill 4+10+20+35 = 69 coefficients for d = 4 against 48 Grassmannian parameters, so already d ≥ 4 needs special structure.
 Dead ends: (a) two rows u, v: the form u^T Q v is nondegenerate (Q = [[0,5,3,3],[5,0,3,3],[3,3,0,2],[3,3,2,0]]) → ≤ 4; (b) the hook (row 0 + column 0), which gives 7 at J in L_gct_189, fails here because the cross block R has no zero entry (diagonal minors 5); (c) antisymmetric t kills the odd parts (perm(M^T) = perm(M)) but not the quadratic one. Row 0 from ker(m0) plus W on rows 1..3 works iff W keeps all four 3×3 column-minor permanents constant.
 Numeric LM search (complex echelon basis, random sample points) does not converge even at d = 4, too weak to decide.
 
 ## L-gct-232 "no 3-dim space of symmetric 4×4 t keeps perm(J+t) = 24" (Normal2, 2026-11-26, released out_of_time)
 Symmetric coordinates (10): linear part 6 on the diagonal, 12 off it (both symmetric entries). The quadratic part on ker(linear) (9 dims) has full rank 9, so the isotropic bound only gives dim ≤ 4: no short proof by the quadratic form alone.
-Numerics (`pequalnp-normal2/.pnp/gct232.py <seed> <dim> <trials> [nfev]`, complex echelon basis, LM): dim 2 converges to 1e-13 at once; dim 3 stalls at a positive residual 0.0125–0.018 over 8 × 40 starts with bounded coefficients → the statement (non-existence) looks TRUE, but a proof needs the cubic and quartic parts (compare the 1300-line L_gct_216).
+Numerics (`master/backup-proofs/lanes/normal2/gct232.py <seed> <dim> <trials> [nfev]`, complex echelon basis, LM): dim 2 converges to 1e-13 at once; dim 3 stalls at a positive residual 0.0125–0.018 over 8 × 40 starts with bounded coefficients → the statement (non-existence) looks TRUE, but a proof needs the cubic and quartic parts (compare the 1300-line L_gct_216).
 
 ## L-pcx-131 "BPHP(5 pigeons, 2 bits) has a Res(⊕) refutation of ≤ 111 lines" (Normal2, 2026-11-26, released out_of_time)
 Desk: its best is 112 (search, not exhaustive); merged lower bound: none ≤ 95 (L_pcx_130); merged upper: 158 (L_pcx_137, format model).
@@ -166,7 +166,7 @@ Counting: all 40 axioms are necessary (drop one → satisfiable), so ≥ 40 axio
 
 ## L-pcx-135 "BPHP(5,2) Res(⊕) ≤ 143 lines" (Normal2, 2026-11-26, released out_of_time; best reached 150)
 L_pcx_137 (158 ≤ bound) is PURE resolution: 40 axioms + 116 resolutions, no weakening. Desk's best for 143 is 144.
-Scheme tried (scripts `pequalnp-normal2/.pnp/pcx/dp*.py`, run without -I since they import dp.py):
+Scheme tried (scripts `master/backup-proofs/lanes/normal2/pcx/dp*.py`, run without -I since they import dp.py):
 1. per pair (i,j) the "differ" clause D_ij = {x_i+x_j=1, y_i+y_j=1}: 4 axioms + 4 weakenings ({u=1,v=1,x_i≠a,y_i≠b}) + 3 resolutions on x_i, y_i = 11 lines, 110 for all pairs;
 2. refute the ten D_ij with a parity decision tree. A leaf is free when the path queried exactly u=0 and v=0 for its pair, or when its pair has only one leaf (weaken the 4 axioms straight to the leaf clause); otherwise +1 weakening.
 Exact DP over pair-sum queries: 24 internal nodes, 25 leaves, total 150. Even-size sums per coordinate: no better (158). Mixed x/y forms (255): DP times out after 20 min at 4G. Beating 144 needs DAG sharing or a smarter phase 1, not a bigger tree DP.

@@ -23,7 +23,7 @@ The harness expects to sit in `$PENP/harness/`, next to the clones it drives:
       fleet-tools -> harness/fleet-tools
       .claude/skills -> ../harness/skills
       pequalnp-proofs/        clone of TheoN70/pequalnp-proofs (lane hard)
-      pequalnp-normal*/       one clone per worker lane
+      pequalnp-normal*/       one worktree per worker lane (absent while lanes are closed; the lane skill recreates it)
       work/<id>/              scratch for one step
       results.tsv             one line per lease
 
