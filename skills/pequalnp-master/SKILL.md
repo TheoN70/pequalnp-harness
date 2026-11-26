@@ -41,7 +41,10 @@ loop below (lanes, BAIL, pause-watch, memory grants), which stays written for wh
   2. When Research reports `tools/pnp.sh check <id>` ACCEPTED: re-check `gh pr list` and submit from that worktree
      (`export PNP_MODEL=claude-sonnet-5-5; tools/pnp.sh submit <id>`, never `--unleased`), record the PR in
      `results.tsv`, empty `busy-research`, tell the owner, Orchestrator and Research.
-- **Refuted or dropped target**: Research writes the verdict line in `master/verdicts.txt`; release the lease with
+- **Refuted target** (the owner, 2026-11-26): do not release on Research's word alone. Orchestrator asks you for the
+  refute twin (kind `refute`, the negation listed beside the unit) so Research can prove the negation; release only
+  when Orchestrator relays the owner's OK. The category and family filters of `grab.sh` play no part in this mode.
+- **Dropped target** (owner's OK): Research writes the verdict line in `master/verdicts.txt`; release the lease with
   `fleet-tools/release.sh <id> <reason>` (from `$PENP/pequalnp-proofs` once the lease is installed there, else
   `curl -X POST "$DESK/release?lease=<lease id>&reason=<reason>"`) and empty `busy-research`.
 

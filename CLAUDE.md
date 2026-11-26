@@ -26,6 +26,14 @@ until it is found, refuted or the owner drops it. Only the owner switches mode o
 | Lanes | closed (empty `busy-*` files), no BAIL; their sessions stay idle |
 | Harness | tools the Research session asks for |
 
+**Prove it or refute it, no quick-win filter** (the owner, 2026-11-26). The old filters (`SKIP_CATS`, merge rate
+per category, always-open family regexes, "prefer families that merge fast", auto-releases) were for clearing many
+easy steps fast; they do not apply in this mode, neither to choosing the target nor to dropping it. The target is
+settled one way or the other: if it is false, the work goes on to prove the negation in Lean (the desk's refute twin,
+kind `refute`, leased by Master) instead of releasing `statement_seems_false` for nothing. Try harder before giving up
+(LRAT cut into cubes, a merged template adapted, a lemma proved by hand, a tool asked of Harness); release only once
+both ways are worked out, and with the owner's OK.
+
 Cores 14-15 stay with the desktop app and the sessions. `capmem` stays mandatory (each command capped: a runaway kills
 only itself), but the 4 GB per lane and Master's memory grants do not apply: Research owns the whole budget.
 The fleet-mode text below (lanes, auto-releases, grants) stays valid for when the owner brings that mode back.
