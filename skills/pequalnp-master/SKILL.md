@@ -55,7 +55,7 @@ loop below (lanes, BAIL, pause-watch, memory grants), which stays written for wh
 - **Always a unit to prove** (the owner, ~18:55 UTC, revised 19:00): the fleet always holds at least one unit that a
   Research session works on (units only waiting out the 1 h hold do not count). When none is left, lease the next one
   at once, no OK needed: first an open sibling of a family we have a generator for (One-a-side 4×5, Table 1a 5×5:
-  `circuit2lean.py` / `rep_lower_gen.py`), else the desk's next `prove` unit (`desk/next` with a research slot). One
+  `circuit2lean.py` / `rep_lower_gen.py`), else the desk's next `prove` unit at level solid (the owner, ~20:05 local: `grab.sh --next <slot> --kind prove --level solid --skip-false-siblings`). One
   such unit is enough, not one per session. Skip siblings whose bound k is at most their number of inputs
   (Table 1a 5×5 "≤ 10" or less, One-a-side 4×5 "≤ 9" or less): they are false when `fleet-tools/rep_lower_gen.py --is-false` says so (counting below |R|-1, no read-once tree at |R|-1, the generated Lean compiling at |R|; any doubt keeps the unit), and a refutation earns
   nothing while no refute unit exists (21062, 21063, 21267, 21268). Send Orchestrator the id, title and statement; it starts a fresh Research session for it.
