@@ -19,9 +19,9 @@ the handle holds at once (`capacity`), so leases are a shared, scarce resource: 
 |---|---|---|---|
 | **Master** | `/pequalnp-master` | runs the collector `master/grab.sh`, hands each lease to a free lane, records outcomes in `results.tsv`, reopens lanes, grants memory | proves steps |
 | **Lanes** `Normal`, `Normal2`…`Normal6`, `Hard` | `/pequalnp-lane <lane>` | proves, submits or releases the one step Master sent | `tools/pnp.sh next`, `desk/next`, another lane's folder |
-| **Orchestrator** (was Analyzer) | `/orchestrator` | runs the research: picks steps and families, launches and supervises subagent teams, turns results into verdicts and tool requests | leases |
+| **Orchestrator** (was Analyzer) | `/orchestrator` | manages the research sessions: picks steps and families, starts one Research session per hard step, shares CPU between them, turns their reports into priorities and tool requests | leases, runs subagents or solvers, verifies proofs |
 | **Harness** | `/harness` | builds, tests and versions the tools in this repo | solves or leases steps |
-| hard-step coordinator | `/pequalnp-hard <id>` | attacks one hard step with parallel subagents in `work/<id>/` | leases before a candidate proof exists |
+| **Research** (`Research-<id>`) | `/pequalnp-hard <id>` | attacks one hard step with parallel subagents in `work/<id>/`, owns their load, verifies every result, asks Master for the lease, reports to Orchestrator | leases itself |
 
 Sessions talk with `ListAgents` / `SendMessage` (address = session name). Messages are prefixed `<From> → <To> :`.
 Lanes reply to `Master`; tool requests go to `Harness`.

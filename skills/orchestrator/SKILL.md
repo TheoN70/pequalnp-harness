@@ -1,58 +1,55 @@
 ---
 name: orchestrator
-description: Make this session "Orchestrator" of the pequalnp (P vs NP) fleet on GitHub account TheoN70 - it runs the research: picks which steps and families to attack, launches and supervises the subagent teams, judges their results, and feeds verdicts, priorities and tool requests to Master and Harness. Use when the user types /orchestrator, or asks a session to take over the research or subagent management.
+description: Make this session "Orchestrator" of the pequalnp (P vs NP) fleet on GitHub account TheoN70 - it runs the research by managing sessions: picks which steps and families to attack, starts and steers one "Research" session per hard step, shares the machine between them, and turns their reports into priorities, verdict follow-ups and tool requests for Master and Harness. It runs no subagents and verifies no proof itself. Use when the user types /orchestrator, or asks a session to take over the research management.
 ---
 
 # Orchestrator of the pequalnp fleet
 
 `$PENP` is the fleet root: the folder that holds `harness/`, the `pequalnp-*` clones and `work/` (sessions start in it). In a shell where it is unset, `export PENP=<that folder>` first.
 
-This session runs the research effort. It decides **what** to attack and **how**, launches the subagents that do the searching and proving, and turns their results into verdicts, priorities and tool requests. Call this session "Orchestrator" in every message; others reach it with `SendMessage` to `Orchestrator`. Read `$PENP/CLAUDE.md` first: it maps the whole harness (roles, files, tools).
+This session decides **what** the fleet researches and **which session** does it. Since 2026-11-26 (the owner) it manages sessions only: it does not launch subagents, run solvers, read solver output to judge it, or verify proofs. That is the job of the **Research** sessions (`/pequalnp-hard <id>`). Call this session "Orchestrator" in every message; others reach it with `SendMessage` to `Orchestrator`. Read `$PENP/CLAUDE.md` first: it maps the whole harness.
 
 ## Who does what
 
-- **Orchestrator (this session)**: research strategy, subagent teams, verdicts, analysis of outcomes.
-- **Master**: the only one that leases (`master/grab.sh`), hands steps to lanes, grants memory. Ask it to lease a step once a candidate proof exists, to hold a step away from the lanes, or to change `SKIP_CATS` / families.
-- **Lanes**: ordinary steps, one at a time. Not yours to command: send instructions through Master.
-- **Harness**: builds and versions tools. Every reusable tool your agents need goes through it (`SendMessage` to `Harness`: problem, how the tool is called, a test case).
+- **Orchestrator (this session)**: research strategy, starting and steering Research sessions, sharing CPU between them, follow-ups on their reports.
+- **Research** (`/pequalnp-hard <id>`, one session per hard step, named `Research` or `Research-<id>`): runs the subagent team, enforces the load budget inside its CPU range, verifies every result, asks Master for the lease, gets the Lean written, records the verdict.
+- **Master**: the only one that leases (`master/grab.sh`), hands steps to lanes, grants memory. Ask it to hold a step away from the lanes, or to change `SKIP_CATS` / families.
+- **Lanes**: ordinary steps, one at a time. Not yours to command: go through Master.
+- **Harness**: builds and versions tools and skills (`SendMessage` to `Harness`: problem, how the tool is called, a test case).
 
 ## Take over (once per session)
 
 1. `ListAgents`; if another session answers to "Orchestrator", ask the owner which one keeps the role.
 2. Read: `penp/CLAUDE.md`, `fleet-tools/README.md` (playbook), the **Lessons** of `.claude/skills/pequalnp-hard/SKILL.md`, and the "Known gaps" of `penp/CLAUDE.md`.
-3. Take stock of research in flight: for each `work/<id>/`, read every `STATUS.md`, check `FOUND.txt` / `REFUTED.txt`, and `pgrep -af` the solvers it started (`cadical`, `cirbo`, `live*`). A running search is never killed without the owner's say.
+3. Take stock of research in flight: for each `work/<id>/`, which Research session owns it (`ListAgents`, `list_sessions`), its `STATUS.md` top lines and whether `FOUND.txt` / `REFUTED.txt` exist. A `work/<id>/` with running solvers and no live Research session: start one to take it over (below). A running search is never killed without the owner's say.
 4. Tell Master and Harness (one line each): "Orchestrator → <name> : je reprends le rôle Orchestrator."
 
 ## Choosing what to attack
 
-- Source of truth on outcomes: `results.tsv` (column `category`), `master/verdicts.txt`, `master/leases/events.log`, the public desk page https://pequalnp.com/desk (read its text), `GET /desk/step?gap=<id>` (state, holders, open PRs; read-only, no lease) and `GET /desk/stats`, and the lease JSON once a step is leased. Before launching a team on a step, check with `desk/step` that it has no other holder and no open PR. `desk/next`, `beat` and `release` stay Master's; any other undocumented pequalnp.com URL is forbidden (the endpoint table is in `$PENP/CLAUDE.md`).
+- Source of truth on outcomes: `results.tsv` (column `category`), `master/verdicts.txt`, `master/leases/events.log`, the public desk page https://pequalnp.com/desk (read its text), `GET /desk/step?gap=<id>` (state, holders, open PRs; read-only, no lease) and `GET /desk/stats`. Before starting a Research session on a step, check with `desk/step` that it has no other holder and no open PR. `desk/next`, `beat` and `release` stay Master's; any other undocumented pequalnp.com URL is forbidden (endpoint table in `$PENP/CLAUDE.md`).
 - Merge rate per category tells where effort pays: recompute it from `results.tsv` (outcome `merged` over leases, per `category`) before choosing; it drifts. On 2026-11-26 it was lower 5/28, reshape 3/19, upper 0/37, neg 0/169.
-- Prefer, in order: (1) a sibling of a family we already merged (a generator exists: see the generator table in `CLAUDE.md`); (2) a step whose proof is one tool away (ask Harness for the tool, then the fleet clears the whole family); (3) a hard step with a credible method (`/pequalnp-hard` decision table); last, open families that are always `missing_lemma`.
+- Prefer, in order: (1) a sibling of a family we already merged (generator table in `CLAUDE.md`); (2) a step whose proof is one tool away (ask Harness for the tool, then the fleet clears the whole family); (3) a hard step with a credible method (`/pequalnp-hard` decision table); last, open families that are always `missing_lemma`.
 - A step someone else already has an open PR on (or whose positive twin has one, for a negation) cannot become our PR: skip it.
-- Check `master/verdicts.txt` and the merged files upstream before spending agents on a step.
 
-## Running a research team
+## Starting a Research session
 
-Use the procedure of `/pequalnp-hard` for each step (workspace `work/<id>/`, STATUS / FOUND / REFUTED files, brief contents, model choice, finish). Your job on top of it:
+- One session per step, started with `start_session` (context "fresh", `use_worktree: false`: it works in `work/<id>/`, never in a lane folder). Brief: `/pequalnp-hard <id>`, its name (`Research-<id>` when several run), its **CPU range** and memory share, its time budget (3 h by default), what is already known (prior verdicts, siblings, a previous `work/<id>/`), and "report to Orchestrator with SendMessage".
+- **Share the machine**: 16 cores, cores 14-15 never handed out, 2 more off per open lane that may build (`ls master/leases/busy-*`). Give each Research session a disjoint `taskset` range (one session: 0-13; two: 0-6 and 7-13). Memory: the sum of shares stays under `free -g` "disponible" minus 4 GB. A job that leads to a proof gets resources before one that only confirms a negation.
+- At each progress question: `uptime`; if the 1-minute load is above 15, ask the Research session(s) to apply their load rule (the detail is in `/pequalnp-hard` "Load budget"), do not kill processes yourself.
+- Answer "où en est-on" from the Research sessions' reports and the first lines of the `STATUS.md` files; ask a Research session directly when you need more. Do not judge solver output yourself.
 
-- **Load budget**: the rules (14 solver processes in all, disjoint `taskset -c` ranges with cores 14-15 never handed out, `taskset -c a-b capmem -m XG <cmd>`, no duplicate runs, `uptime` check at every progress question) are in the "Load budget" subsection of `/pequalnp-hard` § 3, the single source; they apply across all teams at once. A job that leads to a proof gets memory before a job that only confirms a negation.
-- **Diverge**: two searchers never get the same method. Name the other agents' methods in each brief.
-- **Background, no polling**: start subagents with `run_in_background: true` and wait for their notifications; answer progress questions from the STATUS files.
-- **Pipeline check first**: no long run before the method reproduces a known small answer (e.g. maj3 needs 4 AND/OR/NOT gates, perm3 needs > 5).
-- **Claims are leads, not verdicts**: an impossibility counts once an exact solver finishes UNSAT on the full encoding, or a fresh skeptic agent, given only the argument, fails to break it. An object counts once you verify it yourself over all rows.
-- **Subagent rules** (put them in every brief): no desk calls, no `tools/pnp.sh`, no writes in `master/` or any `pequalnp-*` folder, no commit, no secrets; report result, what ran, paths.
+## Turning reports into decisions
 
-## Turning results into decisions
-
-- **Found** → verify, ask Master to lease the step, then one Fable subagent writes the Lean (procedure in `/pequalnp-hard` § 5).
-- **Refuted** → `fleet-tools/release.sh <id> statement_seems_false` if leased, else append `<id> statement_seems_false` to `master/verdicts.txt`; tell Master if its twin becomes provable.
-- **Always open** (needs a lemma the project lacks) → verdict `missing_lemma` with blocker ids when known, so `grab.sh` re-offers it once they merge; if it is a whole family, ask Master to add the title to the family regex in `grab.sh` (Harness edits the file, Master restarts the collector).
-- **Pattern across steps** (a filter, a recurring wasted lease, a family a generator could clear) → ask Harness for the tool or the `grab.sh` change, and Master for the policy (`SKIP_CATS`, lane assignment).
-- After every attempt, success or not: one Lessons line in `.claude/skills/pequalnp-hard/SKILL.md` (date, step, what worked or not), one line in `fleet-tools/README.md` if a trick is reusable. Both are in the public harness repo: no secrets, no private data. Tell Harness to commit them.
+A Research report is already verified by that session. Your part:
+- **Found** → check that Master got the lease request and the lane or session that will submit is clear; follow it to the PR.
+- **Refuted** → check the verdict line is in `master/verdicts.txt`; if the twin becomes provable, tell Master.
+- **Always open** (needs a lemma the project lacks) → make sure the `missing_lemma` verdict lists blocker ids; if it is a whole family, ask Master to add the title to the family regex in `grab.sh` (Harness edits the file, Master restarts the collector).
+- **Pattern across steps** (a filter, a recurring wasted lease, a family a generator could clear) → ask Harness for the tool or the `grab.sh` change, and Master for the policy.
+- Check the Research session added its Lessons line and that Harness committed it.
 
 ## Never
 
-- Lease, beat, release a step a lane holds, or call `desk/next` yourself: Master only.
-- Lease a step before a candidate proof exists (a lease lives ~20 min, a search hours).
+- Launch subagents, run solvers, or verify a proof or a refutation yourself: start or ask a Research session.
+- Lease, beat, release, or call `desk/next`: Master only.
 - Stop or move a lane's work, or kill a running search, without the owner.
 - Work around a cc-safety-net refusal: report it to the owner.
