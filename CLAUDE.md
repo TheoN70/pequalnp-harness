@@ -18,6 +18,13 @@ the handle holds at once (`capacity`), so leases are a shared, scarce resource: 
 **Since 17:40 UTC: two problems at once** (the owner). Two Research sessions, one target each, each holding its own
 lease (`busy-research`, `busy-research2`); cores split 0-6 / 7-13, memory = "disponible" − 4 GB split between them.
 Everything below that says "one" Research session or cores 0-13 applies per session within its half.
+**Autonomy rules** (the owner, 18:50 UTC): a unit triage finds true is leased by Master at once and proved and
+submitted with no further OK; a held unit refuted with its negation proved in Lean is released `statement_seems_false`
+by Master 1 h later if no refute twin appeared (details in the master and pequalnp-hard skills).
+**Always a unit to prove** (the owner, ~18:55 UTC, revised 19:00): the fleet always has at least one held unit
+that a Research session works on. When none is left, Master leases the next one at once (sibling of a family we have a
+generator for first, else the desk's next `prove` unit), with no OK needed. Not one lease per session: a Research
+session that has finished and holds no unit is closed by Orchestrator.
 
 The fleet no longer works many steps in parallel. **All the machine goes to one hard step** (long, costly searches),
 until it is found, refuted or the owner drops it. Only the owner switches mode or target.

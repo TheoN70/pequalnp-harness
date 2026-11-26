@@ -51,6 +51,19 @@ loop below (lanes, BAIL, pause-watch, memory grants), which stays written for wh
   the built-in browser, never another undocumented URL. When a pair appears, lease it with `grab.sh --unit <pair id>
   research`, check its statement is the negation, and send it to the Research session that holds the Lean proof and to
   Orchestrator.
+- **Always a unit to prove** (the owner, ~18:55 UTC, revised 19:00): the fleet always holds at least one unit that a
+  Research session works on (units only waiting out the 1 h hold do not count). When none is left, lease the next one
+  at once, no OK needed: first an open sibling of a family we have a generator for (One-a-side 4×5, Table 1a 5×5:
+  `circuit2lean.py` / `rep_lower_gen.py`), else the desk's next `prove` unit (`desk/next` with a research slot). One
+  such unit is enough, not one per session. Send Orchestrator the id, title and statement; it picks the session.
+- **Autonomy rules** (the owner, 2026-11-26, 18:50 UTC), no further OK needed:
+  1. *True sibling found by triage*: when a Research session sends `<id> circuit vérifié <path>` for a unit we do not
+     hold, lease it at once (`grab.sh --unit <id> <free research slot, e.g. research3>`); on `UNIT-REFUSED` tell
+     Research and Orchestrator. Research then writes the Lean (`circuit2lean.py`), runs `pnp.sh check`, and you submit
+     as for a target.
+  2. *Refuted with the negation proved*: when Research sends `<id> négation prouvée <path>` for a unit we hold, keep
+     the lease 1 h more while watching for its refute twin (below). If none appears within the hour, release it with
+     `statement_seems_false` (verdict line, `results.tsv`) and tell Orchestrator. If one appears, lease it instead.
 - **Dropped target** (owner's OK): Research writes the verdict line in `master/verdicts.txt`; release the lease with
   `fleet-tools/release.sh <id> <reason>` (from `$PENP/pequalnp-proofs` once the lease is installed there, else
   `curl -X POST "$DESK/release?lease=<lease id>&reason=<reason>"`) and empty `busy-research`.
