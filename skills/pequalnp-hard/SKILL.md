@@ -37,16 +37,24 @@ Start them in one message, `run_in_background: true`, `subagent_type: "general-p
 
 - the statement in plain words, exactly (gate model: fan-in, whether NOT gates count, distinct inputs or not; input order: row r, input i = bit i of r, `tableIndex`), and that input relabelings do not change minimum sizes;
 - its method and the other agents' methods (so they diverge), its folder, the STATUS/FOUND/REFUTED convention;
-- the core budget (16 cores; split them, e.g. 10/6) and a time budget (3 h by default);
+- its **CPU set and process cap** (see "Load budget" below), written as a command, e.g. "run every solver as `taskset -c 0-7 capmem -m 6G <cmd>`, at most 8 solver processes at once", and a time budget (3 h by default);
 - the pipeline check first: validate on small cases with a known answer before the real run;
 - the ready tools: the repo `$PENP/pequalnp-proofs` read-only (Defs, `PEqualNP.Library.LRAT` encodings `LinkN.enc2` = AND/OR/NOT, `Defs.LratEncoding.enc2` = AND/OR only), the toolchain CaDiCaL (`$(dirname $(cd lean && elan which lean))/cadical`), `fleet-tools/` (playbook README, lrat/);
 - for circuit searches, **Cirbo** (exact SAT circuit synthesis, Kulikov et al.), installed in `$PENP/work/tools/cirbo-venv` (run `$PENP/work/tools/cirbo-venv/bin/python -I script.py`). Model of pequalnp's AND/OR/NOT circuits with NOT counted: `CircuitFinderSat(TruthTable([[...]]), s, basis=[Operation.lnot_, Operation.and_, Operation.or_]).find_circuit(time_limit=...)`; AND/OR only: drop `lnot_`. Cirbo row j = binary of j with input 0 the most significant bit (a relabeling of pequalnp's order: sizes unchanged, but re-map inputs before writing Lean). Example: `work/L-meta-17389/cirbo/run.py`;
 - for the Lean writer, the `lean-lsp` MCP tools (see the lane skill, step 3b);
 - the rules: never call desk endpoints, never run `tools/pnp.sh`, never touch `master/` or a `pequalnp-*` lane folder, no commit, no `.env`/secrets; report at the end with result, what ran, paths.
 
+### Load budget (the coordinator owns it; the owner, 2026-11-26)
+
+On 2026-11-26 the machine hit load 21 on 16 cores: the briefs said "~10 / ~6 cores" as advice, the agents ran 12 + 9 processes, and the coordinator added its own Cirbo run on top, which duplicated theirs. Rules:
+- **Total cap 14 solver processes**, 2 cores left for the desktop app, Lean and the lanes; take 2 more off per open lane that may build (`ls master/leases/busy-*`: a missing file is an open lane). Memory: the sum of the `capmem` caps stays under `free -g` "disponible" minus 4 GB.
+- **Disjoint CPU sets, enforced, not advised**: give each agent a `taskset -c a-b` range (e.g. 0-7 SAT, 8-13 heuristic; 14-15 never handed out). With `taskset`, an agent that overcommits only slows itself. The brief also states the process cap as a number.
+- **No duplicates**: a portfolio on one CNF has at most 3 configurations (default, `--sat`, `--unsat`); no seed variants. Never run a size whose answer follows from another run (s-1 when s is being proved UNSAT, s+1 when a sibling already shows it SAT), nor the same question with a second tool. Before launching anything itself (a tool test, a check), the coordinator reads the STATUS files and runs only what nobody runs, inside the reserved range.
+- **Check at every progress question**: `uptime` and `ps -eo pid,pcpu,args --sort=-pcpu | head -25`. If the 1-minute load is above 15, find the duplicates, stop them (kill the `timeout` wrapper, `kill -9` only if it survives), tell each agent what was stopped and not to relaunch, and note it in its STATUS.
+
 ## 4. While they run
 
-Answer progress questions from the STATUS files. A claimed impossibility from a heuristic or a hand argument is a lead, not a verdict: it counts once an exact solver finishes UNSAT on the full encoding, or a second agent (skeptic, fresh brief with the argument only) fails to break it.
+Answer progress questions from the STATUS files, after the load check above. A claimed impossibility from a heuristic or a hand argument is a lead, not a verdict: it counts once an exact solver finishes UNSAT on the full encoding, or a second agent (skeptic, fresh brief with the argument only) fails to break it.
 
 ## 5. Finish
 
@@ -57,4 +65,4 @@ Answer progress questions from the STATUS files. A claimed impossibility from a 
 
 ## Lessons (newest last; date, step, what worked or not)
 
-- 2026-11-26 L-meta-17389 (3x3 perfect matching, <= 11 AND/OR/NOT gates, `search`): 2 Opus agents, SAT portfolio (10 cores) + constructive/heuristic (6 cores). The SAT agent ported `LinkN.enc2` to Python because the LRAT library had no build in the shared clone (build it first next time, or port and validate on small cases as it did). Within 25 min the heuristic agent produced a gate-elimination argument that 11 gates is impossible (NOT gates useless at 11, monotone needs 12), cross-checked on restrictions; s = 11 portfolio still undecided at 25 min. Outcome: pending.
+- 2026-11-26 L-meta-17389 (3x3 perfect matching, <= 11 AND/OR/NOT gates, `search`): 2 Opus agents, SAT portfolio (10 cores) + constructive/heuristic (6 cores). The SAT agent ported `LinkN.enc2` to Python because the LRAT library had no build in the shared clone (build it first next time, or port and validate on small cases as it did). Within 25 min the heuristic agent produced a gate-elimination argument that 11 gates is impossible (NOT gates useless at 11, monotone needs 12), cross-checked on restrictions; s = 11 portfolio still undecided at 25 min. At 50 min, load 21/16: 6 seed variants on s=11, two s=12 runs, two CEGAR seeds, an unsplit monosat 11 next to its AND/OR split, and the coordinator's Cirbo s=12 → stopped 9 duplicates, kept 8 runs (origin of the Load budget rules). Outcome: pending.

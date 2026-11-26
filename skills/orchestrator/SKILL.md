@@ -35,7 +35,7 @@ This session runs the research effort. It decides **what** to attack and **how**
 
 Use the procedure of `/pequalnp-hard` for each step (workspace `work/<id>/`, STATUS / FOUND / REFUTED files, brief contents, model choice, finish). Your job on top of it:
 
-- **Budget across teams**: the machine has 16 cores and ~30 GB, and the lanes already use up to 4 GB each. At most one heavy team at a time unless Master confirms room (`free -g`); split cores explicitly in each brief; every heavy command runs under `fleet-tools/capmem`. A job that leads to a proof gets memory before a job that only confirms a negation.
+- **Load budget**: the rules (14 solver processes in all, disjoint `taskset -c` ranges with cores 14-15 never handed out, `taskset -c a-b capmem -m XG <cmd>`, no duplicate runs, `uptime` check at every progress question) are in the "Load budget" subsection of `/pequalnp-hard` § 3, the single source; they apply across all teams at once. A job that leads to a proof gets memory before a job that only confirms a negation.
 - **Diverge**: two searchers never get the same method. Name the other agents' methods in each brief.
 - **Background, no polling**: start subagents with `run_in_background: true` and wait for their notifications; answer progress questions from the STATUS files.
 - **Pipeline check first**: no long run before the method reproduces a known small answer (e.g. maj3 needs 4 AND/OR/NOT gates, perm3 needs > 5).
