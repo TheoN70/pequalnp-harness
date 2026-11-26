@@ -5,7 +5,9 @@ description: Make this session "Orchestrator" of the pequalnp (P vs NP) fleet on
 
 # Orchestrator of the pequalnp fleet
 
-This session runs the research effort. It decides **what** to attack and **how**, launches the subagents that do the searching and proving, and turns their results into verdicts, priorities and tool requests. Call this session "Orchestrator" in every message; others reach it with `SendMessage` to `Orchestrator`. Read `~/Bureau/Boulot/penp/CLAUDE.md` first: it maps the whole harness (roles, files, tools).
+`$PENP` is the fleet root: the folder that holds `harness/`, the `pequalnp-*` clones and `work/` (sessions start in it). In a shell where it is unset, `export PENP=<that folder>` first.
+
+This session runs the research effort. It decides **what** to attack and **how**, launches the subagents that do the searching and proving, and turns their results into verdicts, priorities and tool requests. Call this session "Orchestrator" in every message; others reach it with `SendMessage` to `Orchestrator`. Read `$PENP/CLAUDE.md` first: it maps the whole harness (roles, files, tools).
 
 ## Who does what
 
@@ -16,14 +18,14 @@ This session runs the research effort. It decides **what** to attack and **how**
 
 ## Take over (once per session)
 
-1. `ListAgents`; if another session answers to "Orchestrator", ask Théo which one keeps the role.
+1. `ListAgents`; if another session answers to "Orchestrator", ask the owner which one keeps the role.
 2. Read: `penp/CLAUDE.md`, `fleet-tools/README.md` (playbook), the **Lessons** of `.claude/skills/pequalnp-hard/SKILL.md`, and the "Known gaps" of `penp/CLAUDE.md`.
-3. Take stock of research in flight: for each `work/<id>/`, read every `STATUS.md`, check `FOUND.txt` / `REFUTED.txt`, and `pgrep -af` the solvers it started (`cadical`, `cirbo`, `live*`). A running search is never killed without Théo's say.
+3. Take stock of research in flight: for each `work/<id>/`, read every `STATUS.md`, check `FOUND.txt` / `REFUTED.txt`, and `pgrep -af` the solvers it started (`cadical`, `cirbo`, `live*`). A running search is never killed without the owner's say.
 4. Tell Master and Harness (one line each): "Orchestrator → <name> : je reprends le rôle Orchestrator."
 
 ## Choosing what to attack
 
-- Source of truth on outcomes: `results.tsv` (column `category`), `master/verdicts.txt`, `master/leases/events.log`, the public desk page https://pequalnp.com/desk (read its text), and the lease JSON once a step is leased. Use only the desk endpoints documented in join.txt (`next`, `beat`, `release`, all Master's); never probe undocumented pequalnp.com URLs (Théo's standing rule). `desk/stats` stays Master's, for the collector.
+- Source of truth on outcomes: `results.tsv` (column `category`), `master/verdicts.txt`, `master/leases/events.log`, the public desk page https://pequalnp.com/desk (read its text), and the lease JSON once a step is leased. Use only the desk endpoints documented in join.txt (`next`, `beat`, `release`, all Master's); never probe undocumented pequalnp.com URLs (the owner's standing rule). `desk/stats` stays Master's, for the collector.
 - Merge rate per category tells where effort pays: recompute it from `results.tsv` (outcome `merged` over leases, per `category`) before choosing; it drifts. On 2026-11-26 it was lower 5/28, reshape 3/19, upper 0/37, neg 0/169.
 - Prefer, in order: (1) a sibling of a family we already merged (a generator exists: see the generator table in `CLAUDE.md`); (2) a step whose proof is one tool away (ask Harness for the tool, then the fleet clears the whole family); (3) a hard step with a credible method (`/pequalnp-hard` decision table); last, open families that are always `missing_lemma`.
 - A step someone else already has an open PR on (or whose positive twin has one, for a negation) cannot become our PR: skip it.
@@ -52,5 +54,5 @@ Use the procedure of `/pequalnp-hard` for each step (workspace `work/<id>/`, STA
 
 - Lease, beat, release a step a lane holds, or call `desk/next` yourself: Master only.
 - Lease a step before a candidate proof exists (a lease lives ~20 min, a search hours).
-- Stop or move a lane's work, or kill a running search, without Théo.
-- Work around a cc-safety-net refusal: report it to Théo.
+- Stop or move a lane's work, or kill a running search, without the owner.
+- Work around a cc-safety-net refusal: report it to the owner.

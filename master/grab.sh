@@ -13,7 +13,7 @@ LOG="$OUT/events.log"; touch "$LOG"
 exec 9>"$OUT/collector.lock"
 flock -n 9 || { echo "collector already running" >&2; exit 0; }
 exec 8>"$OUT/manager.lock"
-H=TheoN70; N=${1:-30}; NORMAL_LANES=${NORMAL_LANES:-normal normal2 normal3 normal4 hard normal5 normal6}   # Théo 2026-11-25 18:40: Hard takes ordinary steps   # ponytail: the desk caps a handle at 5 held steps, so 4 normal + 1 hard is the max
+H=TheoN70; N=${1:-30}; NORMAL_LANES=${NORMAL_LANES:-normal normal2 normal3 normal4 hard normal5 normal6}   # The owner 2026-11-25 18:40: Hard takes ordinary steps   # ponytail: the desk caps a handle at 5 held steps, so 4 normal + 1 hard is the max
 next_normal=0; next_hard=0; hourly=$(( $(date +%s) + 3600 ))
 log() { echo "$(date -u +%H:%M:%S) $*" >> "$LOG"; }
 try_unlocked() { # $1 = lane, $2 = extra query; returns 1 when the desk had nothing for us
@@ -46,7 +46,7 @@ try_unlocked() { # $1 = lane, $2 = extra query; returns 1 when the desk had noth
   [ -z "$why" ] && [ -z "$unblocked" ] && python3 -c 'import json,re,sys; t=json.load(open(sys.argv[1]))["gap"]["title"]; sys.exit(0 if re.search(r"[Pp]lane of order [34]|Order-[34] plane|plane of order q|Fano plane: no circuit of at most 27|4-cycle-free|No-4-cycle|no cycle shorter than 5|G11|Petersen|Cubic piece, cycles|^Conjecture|^No AND/OR(/NOT)? circuit .* computes the edge function|^Resolution on the pigeonhole formula with 5 pigeons and 4 holes: (no refutation has at most 1[1-5][0-9]|some refutation has at most (1[1-4][0-9]|15[0-8])) lines|^Res\(⊕\) on the pigeonhole formula with 5 pigeons and 4 holes: (some|no) refutation has at most (1[0-4][0-9]|15[0-6]) lines", t) else 1)' "$OUT/$id.json" && why=missing_lemma
   # FoldExtra/SyntacticFold defs absent from main (2026-11-26, 17774/17746): drop this line once they merge
   [ -z "$why" ] && python3 -c 'import json,sys; s=str(json.load(open(sys.argv[1]))["gap"].get("statement","")); sys.exit(0 if ("FoldExtra." in s or "SyntacticFold." in s) else 1)' "$OUT/$id.json" && why=does_not_elaborate
-  # a negated step whose twin is merged upstream with exactly the negated statement is false (Théo's go, 2026-11-25)
+  # a negated step whose twin is merged upstream with exactly the negated statement is false (the owner's go, 2026-11-25)
   if [ -z "$why" ] && python3 -I "$(dirname "$(readlink -f "$0")")/twin_merged.py" "$OUT/$id.json"; then
     why=statement_seems_false
   fi
@@ -54,13 +54,13 @@ try_unlocked() { # $1 = lane, $2 = extra query; returns 1 when the desk had noth
   if [ -z "$why" ] && [ "$(gh pr list -R open-goat/pequalnp-proofs --state open --search "$id in:title" --json title --jq "[.[]|select(.title==\"$id\")]|length" 2>/dev/null)" -gt 0 ] 2>/dev/null; then
     why=other
   fi
-  # Théo 2026-11-25 ~21:10: a negation whose positive twin (id - 1) already has someone else's open PR cannot give us a PR:
+  # The owner 2026-11-25 ~21:10: a negation whose positive twin (id - 1) already has someone else's open PR cannot give us a PR:
   # hand it back unjudged ("other") instead of spending a lane on it
   if [ -z "$why" ] && python3 -c 'import json,sys; t=json.load(open(sys.argv[1]))["gap"]["title"]; sys.exit(0 if t.startswith(("False:","It is false that")) else 1)' "$OUT/$id.json"; then
     twin="L-meta-$(( ${id#L-meta-} - 1 ))"
     [ "$(gh pr list -R open-goat/pequalnp-proofs --state open --search "$twin in:title" --json title --jq "[.[]|select(.title==\"$twin\")]|length" 2>/dev/null)" -gt 0 ] 2>/dev/null && why=other
   fi
-  # Théo 2026-11-26 06:50: prioritise lower/reshape. upper (0/37 merged) and neg (0/169) go back unjudged ("other"), never to a lane.
+  # The owner 2026-11-26 06:50: prioritise lower/reshape. upper (0/37 merged) and neg (0/169) go back unjudged ("other"), never to a lane.
   # ponytail: category.py title regexes; set SKIP_CATS= to lift the rule.
   if [ -z "$why" ] && [ -z "$unblocked" ]; then cat=$(python3 -I "$(dirname "$OUT")/../fleet-tools/category.py" "$OUT/$id.json" 2>/dev/null); case " ${SKIP_CATS-upper neg} " in *" ${cat#cut/} "*) why=other; log "SKIPPED $1 $id category=$cat";; esac; fi
   if [ -n "$why" ]; then

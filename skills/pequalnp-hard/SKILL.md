@@ -1,11 +1,13 @@
 ---
 name: pequalnp-hard
-description: Attack one hard step of the P vs NP (pequalnp.com) desk with several subagents in parallel (search, proof, Lean), for GitHub account TheoN70. Use when Théo asks to work on, prove or search a hard step, e.g. "on attaque L-meta-17389" or /pequalnp-hard L-meta-17389.
+description: Attack one hard step of the P vs NP (pequalnp.com) desk with several subagents in parallel (search, proof, Lean), for GitHub account TheoN70. Use when the owner asks to work on, prove or search a hard step, e.g. "on attaque L-meta-17389" or /pequalnp-hard L-meta-17389.
 ---
 
 # Hard step with parallel subagents
 
-The argument is a step id from https://pequalnp.com/desk (level `hard`). This session coordinates; subagents do the work. Started 2026-11-26 (Théo): the method is updated as we learn what works, in the **Lessons** section at the end. Add a line there after every attempt, success or not.
+`$PENP` is the fleet root: the folder that holds `harness/`, the `pequalnp-*` clones and `work/` (sessions start in it). In a shell where it is unset, `export PENP=<that folder>` first.
+
+The argument is a step id from https://pequalnp.com/desk (level `hard`). This session coordinates; subagents do the work. Started 2026-11-26 (the owner): the method is updated as we learn what works, in the **Lessons** section at the end. Add a line there after every attempt, success or not.
 
 ## 0. Pick and check (coordinator, no subagent)
 
@@ -27,7 +29,7 @@ Lower bounds for "Plane of order 3/4", "G11", "4-cycle-free", "Petersen" have so
 
 ## 2. Workspace
 
-`~/Bureau/Boulot/penp/work/<id>/`, one subfolder per agent (`sat/`, `heur/`, `math/`, `lean/`), each with a `STATUS.md` the agent keeps current (timestamped lines: what runs, what was validated, what was found). Shared stop file: `FOUND.txt` (the object, verified), or `REFUTED.txt` (the statement is false, with the evidence). Every agent checks both before each long run and stops if one exists. Read the STATUS files to answer "où en est-on", never the agents' transcripts.
+`$PENP/work/<id>/`, one subfolder per agent (`sat/`, `heur/`, `math/`, `lean/`), each with a `STATUS.md` the agent keeps current (timestamped lines: what runs, what was validated, what was found). Shared stop file: `FOUND.txt` (the object, verified), or `REFUTED.txt` (the statement is false, with the evidence). Every agent checks both before each long run and stops if one exists. Read the STATUS files to answer "où en est-on", never the agents' transcripts.
 
 ## 3. Briefs (each subagent sees nothing of this conversation)
 
@@ -37,8 +39,8 @@ Start them in one message, `run_in_background: true`, `subagent_type: "general-p
 - its method and the other agents' methods (so they diverge), its folder, the STATUS/FOUND/REFUTED convention;
 - the core budget (16 cores; split them, e.g. 10/6) and a time budget (3 h by default);
 - the pipeline check first: validate on small cases with a known answer before the real run;
-- the ready tools: the repo `~/Bureau/Boulot/penp/pequalnp-proofs` read-only (Defs, `PEqualNP.Library.LRAT` encodings `LinkN.enc2` = AND/OR/NOT, `Defs.LratEncoding.enc2` = AND/OR only), the toolchain CaDiCaL (`$(dirname $(cd lean && elan which lean))/cadical`), `fleet-tools/` (playbook README, lrat/);
-- for circuit searches, **Cirbo** (exact SAT circuit synthesis, Kulikov et al.), installed in `~/Bureau/Boulot/penp/work/tools/cirbo-venv` (run `~/Bureau/Boulot/penp/work/tools/cirbo-venv/bin/python -I script.py`). Model of pequalnp's AND/OR/NOT circuits with NOT counted: `CircuitFinderSat(TruthTable([[...]]), s, basis=[Operation.lnot_, Operation.and_, Operation.or_]).find_circuit(time_limit=...)`; AND/OR only: drop `lnot_`. Cirbo row j = binary of j with input 0 the most significant bit (a relabeling of pequalnp's order: sizes unchanged, but re-map inputs before writing Lean). Example: `work/L-meta-17389/cirbo/run.py`;
+- the ready tools: the repo `$PENP/pequalnp-proofs` read-only (Defs, `PEqualNP.Library.LRAT` encodings `LinkN.enc2` = AND/OR/NOT, `Defs.LratEncoding.enc2` = AND/OR only), the toolchain CaDiCaL (`$(dirname $(cd lean && elan which lean))/cadical`), `fleet-tools/` (playbook README, lrat/);
+- for circuit searches, **Cirbo** (exact SAT circuit synthesis, Kulikov et al.), installed in `$PENP/work/tools/cirbo-venv` (run `$PENP/work/tools/cirbo-venv/bin/python -I script.py`). Model of pequalnp's AND/OR/NOT circuits with NOT counted: `CircuitFinderSat(TruthTable([[...]]), s, basis=[Operation.lnot_, Operation.and_, Operation.or_]).find_circuit(time_limit=...)`; AND/OR only: drop `lnot_`. Cirbo row j = binary of j with input 0 the most significant bit (a relabeling of pequalnp's order: sizes unchanged, but re-map inputs before writing Lean). Example: `work/L-meta-17389/cirbo/run.py`;
 - for the Lean writer, the `lean-lsp` MCP tools (see the lane skill, step 3b);
 - the rules: never call desk endpoints, never run `tools/pnp.sh`, never touch `master/` or a `pequalnp-*` lane folder, no commit, no `.env`/secrets; report at the end with result, what ran, paths.
 

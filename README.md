@@ -1,5 +1,7 @@
 # pequalnp harness
 
+`$PENP` is the fleet root: the folder that holds `harness/`, the `pequalnp-*` clones and `work/` (sessions start in it). In a shell where it is unset, `export PENP=<that folder>` first.
+
 The tooling that runs a fleet of Claude sessions proving Lean 4 steps for https://pequalnp.com
 (GitHub account TheoN70). The Lean proofs themselves live in `TheoN70/pequalnp-proofs`, not here.
 
@@ -13,7 +15,7 @@ The tooling that runs a fleet of Claude sessions proving Lean 4 steps for https:
 
 ## Layout on disk
 
-The harness expects to sit in `~/Bureau/Boulot/penp/harness/`, next to the clones it drives:
+The harness expects to sit in `$PENP/harness/`, next to the clones it drives:
 
     penp/
       harness/                this repository

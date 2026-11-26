@@ -5,11 +5,13 @@ description: Run (or take over) the "Master" session of the P vs NP (pequalnp.co
 
 # Master of the pequalnp fleet
 
-Théo (GitHub **TheoN70**) runs several Claude sessions that prove Lean 4 steps leased from the desk at https://pequalnp.com/desk. Workers never lease themselves: Master runs a lease tool, hands each lease to a free lane, records the outcome, reopens the lane, and allocates resources (memory) by importance. Call this session "Master" in every message (lanes reply with `SendMessage` to `Master`).
+`$PENP` is the fleet root: the folder that holds `harness/`, the `pequalnp-*` clones and `work/` (sessions start in it). In a shell where it is unset, `export PENP=<that folder>` first.
 
-**Keep this skill current**: Théo's standing order (2026-11-25) is that every new mechanism invented during a session is written here at once, in the same turn.
+The owner (GitHub **TheoN70**) runs several Claude sessions that prove Lean 4 steps leased from the desk at https://pequalnp.com/desk. Workers never lease themselves: Master runs a lease tool, hands each lease to a free lane, records the outcome, reopens the lane, and allocates resources (memory) by importance. Call this session "Master" in every message (lanes reply with `SendMessage` to `Master`).
 
-Everything durable lives in `~/Bureau/Boulot/penp/` (never in `/tmp`: the machine rebooted on 2026-11-25 19:26 and `/tmp` was wiped):
+**Keep this skill current**: The owner's standing order (2026-11-25) is that every new mechanism invented during a session is written here at once, in the same turn.
+
+Everything durable lives in `$PENP/` (never in `/tmp`: the machine rebooted on 2026-11-25 19:26 and `/tmp` was wiped):
 
 | Path | What |
 |---|---|
@@ -35,23 +37,23 @@ Everything durable lives in `~/Bureau/Boulot/penp/` (never in `/tmp`: the machin
 | `normal5` | Normal5 | `pequalnp-normal5` |
 | `normal6` | Normal6 | `pequalnp-normal6` |
 
-`NORMAL_LANES` in `grab.sh` lists them in this order (the next lease goes to the first free lane after the last one assigned). Since 2026-11-25 18:40 (Théo's decision) `hard` takes **ordinary** steps; hard steps (Petersen, G11, plane of order q, 4-cycle-free conjectures) were never provable. `HARD_STEPS=1 bash grab.sh 5` brings hard leasing back. The desk caps held steps (`capacity`, 9 on 2026-11-25 evening, 12 on 2026-11-26 05:35 after #21202 and #21594 merged; it grows as our proofs merge); never run more lanes than the capacity.
-- 2026-11-26 06:29 UTC (Théo): Normal5 and Normal6 retired from the fleet. Their `busy-normal5` / `busy-normal6` files are kept EMPTY so the tool never leases to them; do not remove them unless Théo brings them back. Normal3 reopened 06:31 UTC (Théo).
-- 2026-11-26 06:45 UTC (Théo, via Analyzer): lanes run on Sonnet and do triage, C/SAT searches and all releases themselves; ONLY the Lean proof writing goes to ONE Fable subagent (Agent, model "fable"; was Opus until 06:55) with a full brief. The subagent never submits, releases or calls the desk; the lane keeps beating, checks the build and submits. Lanes started before this rule get it with their next BAIL (see pequalnp-lane step 3b). Switching lane sessions to Sonnet waits for Théo's go, after their current step.
-- 2026-11-26 06:50 UTC (Théo): prioritise lower and reshape. `grab.sh` hands back every step whose `fleet-tools/category.py` category is `upper` or `neg` (also `cut/…`) with reason `other` and logs `SKIPPED` (merge record so far: upper 0/37, neg 0/169; lower 5/28, reshape 3/19). Lift it with `SKIP_CATS= bash master/grab.sh 15`. Twin leases with `have=proof` are Master's own call and not filtered.
-- Sibling families (Théo 2026-11-26 07:30): when the desk serves a step of a family we merged or submitted, give it at once to a free lane and name the tool and the reference file in the BAIL. Families so far: "At fan-in two, one NOT gate saves nothing on edges …" (8 inputs; fleet-tools onenot_k4_gen8.py / liveg; merged 14144 14592 14746 14920; category lower) and "Table 2: for the monotone six-input f with table … each AND/OR/NOT circuit …" (block6; six_cert_gen.py; merged 16553 17077; category reshape). Both categories pass the SKIP_CATS filter, so grab.sh needs no change; only a sibling filed as upper/neg would need an exemption there. When a sibling fails with the tool, say so in the next BAIL.
+`NORMAL_LANES` in `grab.sh` lists them in this order (the next lease goes to the first free lane after the last one assigned). Since 2026-11-25 18:40 (the owner's decision) `hard` takes **ordinary** steps; hard steps (Petersen, G11, plane of order q, 4-cycle-free conjectures) were never provable. `HARD_STEPS=1 bash grab.sh 5` brings hard leasing back. The desk caps held steps (`capacity`, 9 on 2026-11-25 evening, 12 on 2026-11-26 05:35 after #21202 and #21594 merged; it grows as our proofs merge); never run more lanes than the capacity.
+- 2026-11-26 06:29 UTC (the owner): Normal5 and Normal6 retired from the fleet. Their `busy-normal5` / `busy-normal6` files are kept EMPTY so the tool never leases to them; do not remove them unless the owner brings them back. Normal3 reopened 06:31 UTC (the owner).
+- 2026-11-26 06:45 UTC (the owner, via Analyzer): lanes run on Sonnet and do triage, C/SAT searches and all releases themselves; ONLY the Lean proof writing goes to ONE Fable subagent (Agent, model "fable"; was Opus until 06:55) with a full brief. The subagent never submits, releases or calls the desk; the lane keeps beating, checks the build and submits. Lanes started before this rule get it with their next BAIL (see pequalnp-lane step 3b). Switching lane sessions to Sonnet waits for the owner's go, after their current step.
+- 2026-11-26 06:50 UTC (the owner): prioritise lower and reshape. `grab.sh` hands back every step whose `fleet-tools/category.py` category is `upper` or `neg` (also `cut/…`) with reason `other` and logs `SKIPPED` (merge record so far: upper 0/37, neg 0/169; lower 5/28, reshape 3/19). Lift it with `SKIP_CATS= bash master/grab.sh 15`. Twin leases with `have=proof` are Master's own call and not filtered.
+- Sibling families (the owner 2026-11-26 07:30): when the desk serves a step of a family we merged or submitted, give it at once to a free lane and name the tool and the reference file in the BAIL. Families so far: "At fan-in two, one NOT gate saves nothing on edges …" (8 inputs; fleet-tools onenot_k4_gen8.py / liveg; merged 14144 14592 14746 14920; category lower) and "Table 2: for the monotone six-input f with table … each AND/OR/NOT circuit …" (block6; six_cert_gen.py; merged 16553 17077; category reshape). Both categories pass the SKIP_CATS filter, so grab.sh needs no change; only a sibling filed as upper/neg would need an exemption there. When a sibling fails with the tool, say so in the next BAIL.
 - LRAT tool (Analyzer, 2026-11-26 08:05): `fleet-tools/lrat/lower.sh` proves "every AND/OR/NOT circuit for f has >= s+1 gates" with a kernel-checked SAT certificate. Only for 4-input lower bounds (L-meta-9550 reproduced, 12 KB, 6 s); 5 inputs / 9 gates gives a 47 MB certificate (limit 512 KiB) and L-meta steps may only import PEqualNP.Defs. Name it in the BAIL when a 4-input lower bound comes up. See fleet-tools/lrat/README.md.
 - Missed-lease check (2026-11-26 08:34, after L-meta-9840 sat unrelayed on Normal3 for 1h45 while beat() kept renewing it): at every monitor re-arm, run `for f in master/leases/busy-*; do id=$(cat $f); [ -n "$id" ] && grep -qP "\t$id\t.*in_progress" results.tsv || echo "NOT RELAYED $f $id"; done` and relay or release anything it prints.
 - Asset (Normal2, 2026-11-26 08:55): a 150-line Res(⊕) refutation of bit-PHP 5 pigeons / 2 bits (XOR difference clauses + parity decision tree, scripts in fleet-tools/README.md). Main has 158 (L-pcx-137). If the desk serves a "some refutation has at most N lines" step of this family with N >= 150, give it at once to a lane with that construction: it is a proof.
-- PAUSE (Théo via Analyzer, 2026-11-26 ~09:20 UTC): since 08:47 the desk serves only judged steps (109 auto-releases in an hour, 0 submissions). All lanes closed with EMPTY busy files; no BAIL. grab.sh keeps running (beats only). A background loop reads desk/stats hourly (log master/leases/pause-watch.log, baseline offerable_now_ordinary=67) and exits when it rises by 20+. Then remove ONE busy file; if that lane gets a step absent from verdicts.txt, reopen the others, else close it again. Tell Théo and Analyzer on reopening. If Master died: restart that loop, it is the only wake-up.
+- PAUSE (the owner via Analyzer, 2026-11-26 ~09:20 UTC): since 08:47 the desk serves only judged steps (109 auto-releases in an hour, 0 submissions). All lanes closed with EMPTY busy files; no BAIL. grab.sh keeps running (beats only). A background loop reads desk/stats hourly (log master/leases/pause-watch.log, baseline offerable_now_ordinary=67) and exits when it rises by 20+. Then remove ONE busy file; if that lane gets a step absent from verdicts.txt, reopen the others, else close it again. Tell the owner and Analyzer on reopening. If Master died: restart that loop, it is the only wake-up.
 
 Session ids change nothing across restarts but their socket addresses do: after any restart, message lanes with `mcp__ccd_session_mgmt__send_message` and the session id (from `list_sessions`), which also wakes an idle lane. `SendMessage` to a `uds:` address fails once the peer restarted.
 
 ## Taking over (session died, app restarted, machine rebooted)
 
-1. Is the tool alive? `pgrep -af master/grab.sh`. If not: `bash ~/Bureau/Boulot/penp/master/grab.sh 5` with `run_in_background`. Every restart beats all busy leases at once.
+1. Is the tool alive? `pgrep -af master/grab.sh`. If not: `bash $PENP/master/grab.sh 5` with `run_in_background`. Every restart beats all busy leases at once.
 2. Arm the monitor (it expires after 5 min; re-arm it each time and read `tail -5 master/leases/events.log` to catch leases taken between two monitors — this was missed twice on 2026-11-25):
-   `tail -n 0 -F ~/Bureau/Boulot/penp/master/leases/events.log | grep --line-buffered -E 'LEASED|START|BEAT-END|CAPPED'` (Monitor, persistent).
+   `tail -n 0 -F $PENP/master/leases/events.log | grep --line-buffered -E 'LEASED|START|BEAT-END|CAPPED'` (Monitor, persistent).
 3. Why did it die? `uptime` (machine reboot?) and `journalctl -k --since "-30 min" | grep -i oom` (a lane command over its memory?).
 4. Rebuild the picture: `for f in master/leases/busy-*; do echo "$f: $(cat $f)"; done`, the `in_progress` lines of `results.tsv`, and `curl -s "$DESK/step?gap=<id>"` for each busy step (`leased`, `open` = released, `pr_open`). Check whether the lane installed it (`ls <worktree>/.pnp/<id>.json`) or read its last turns with `list_events` (read only).
 5. A busy lease nobody installed: relay it again (say "renvoi, ignore si doublon"). A busy step already released by its lane: record it, remove the busy file.
@@ -88,7 +90,7 @@ Session ids change nothing across restarts but their socket addresses do: after 
 
 - Since 2026-11-25 21:58 local the tool itself releases `missing_lemma` any step whose title matches an open family (`[Pp]lane of order [34]|Order-[34] plane|plane of order q|Fano plane: no circuit of at most 27|4-cycle-free|no cycle shorter than 5|G11|Petersen|Cubic piece, cycles|^Conjecture|^No AND/OR circuit .* computes the edge function`|Res PHP 5→4 no-refutation 110..159 and some-refutation 110..158 lines (best known 159); Res(⊕) PHP 5→4 some or no refutation at most 100..156 lines (best known 157, added 07:55) (open gap 110..159, 2026-11-26)`; edge-function lower bounds, always missing_lemma, added 2026-11-26 06:03); extend that regex in `grab.sh` when a new family proves always open (restart needed).
 - Since 2026-11-26 05:41 UTC the tool releases `does_not_elaborate` any step whose statement uses `FoldExtra.` or `SyntacticFold.` (definitions absent from main, 17774/17746). Delete that line in `grab.sh` once those definitions merge.
-- SAT solver (2026-11-26, Théo): `fleet-tools/sat-venv/bin/python` has python-sat (CaDiCaL `cadical195`, Glucose). Use it for tight upper bounds (exact synthesis on the decisive points), run under `capmem -m 8G`, Master grant. A lane on such a task gets an empty `busy-<lane>` so the tool skips it; if the step is held elsewhere, find the circuit first, then lease it with `have=proof` once free.
+- SAT solver (2026-11-26, the owner): `fleet-tools/sat-venv/bin/python` has python-sat (CaDiCaL `cadical195`, Glucose). Use it for tight upper bounds (exact synthesis on the decisive points), run under `capmem -m 8G`, Master grant. A lane on such a task gets an empty `busy-<lane>` so the tool skips it; if the step is held elsewhere, find the circuit first, then lease it with `have=proof` once free.
 
 **Lane report `<Lane> → Master : <id> terminée, …`** →
 - Replace its `in_progress` line in `results.tsv` (python `str.replace`), outcome `released`/`submitted`, reason or `PR #n`, one-line note with the numbers. Say when a verdict is not verified by search (README convention).
@@ -103,11 +105,11 @@ Session ids change nothing across restarts but their socket addresses do: after 
 
 **Lane busy elsewhere** (fixing a PR, long search): hold its lane closed with an empty busy file, or move its untouched lease to a free lane (rewrite `busy-<new lane>`, empty the old one, relay).
 
-## Resources: memory by importance (Théo's rules, 2026-11-25)
+## Resources: memory by importance (the owner's rules, 2026-11-25)
 
 - Every heavy lane command (livegpx, live7, liveg, live, lsg, lake build, `/usr/bin/time -v lake build`) runs under `fleet-tools/capmem [-m <size>] <command>`: own systemd scope, hard cap, default **4G** (7 lanes × 4G = 28G of the 30G box). Over the cap only the command dies (exit 137 = "search too big", not a result). Why: on 2026-11-25 20:30 an uncapped livegpx reached 24 GB and the OOM kill inside Claude Desktop's cgroup crashed the app for every session.
 - More than 4G only with Master's grant. A lane sends `MEM <lane> <size> <id> <why>`; Master answers `MEM OK <lane> <size>`, `MEM WAIT` (queued) or `MEM NO` (release the step `out_of_time`); the lane sends `MEM DONE <lane>` when the job ends. Record each grant in `master/mem-grants` (`<lane> <size> <id> <HH:MM>`), remove it on `MEM DONE` or on the lane's step report.
-- **Allocate by importance** (Théo, 2026-11-25): a job that leads to a proof gets memory first.
+- **Allocate by importance** (the owner, 2026-11-25): a job that leads to a proof gets memory first.
   1. A build or check of a finished proof about to be submitted (positive step, free twin): grant up to 8G at once, even if another grant is active, after `free -g` shows room; it is the only thing that produces PRs.
   2. A search that decides whether a proof exists (positive step, constructive circuit): grant up to 8G, one at a time.
   3. A search that only confirms a negation is false (twin already has someone else's PR): no extra memory; past 4G release `out_of_time` or `other`.
@@ -115,14 +117,14 @@ Session ids change nothing across restarts but their socket addresses do: after 
 
 ## Collector
 
-The Codex fleet that shared the TheoN70 handle was retired on 2026-11-26 (Théo); `grab.sh` serves Claude lanes only. A `flock` on `leases/collector.lock` allows only one collector (a second start exits "collector already running"; check `pgrep -af master/grab.sh` before restarting, and stop the running one first). A held step outside known lanes is logged `RECONCILE` and saved as `unassigned-<id>.json`.
+The Codex fleet that shared the TheoN70 handle was retired on 2026-11-26 (the owner); `grab.sh` serves Claude lanes only. A `flock` on `leases/collector.lock` allows only one collector (a second start exits "collector already running"; check `pgrep -af master/grab.sh` before restarting, and stop the running one first). A held step outside known lanes is logged `RECONCILE` and saved as `unassigned-<id>.json`.
 
-- Théo's decisions 2026-11-25 ~21:10: the collector polls every **15 s** (`bash master/grab.sh 15`, was 5 s; the desk answered 429 with two fleets), and the tool **releases unjudged (`other`) any negation ("False: …" / "It is false that …") whose positive twin (id − 1) already has someone else's open PR** — lanes only get steps that can lead to our own PR. Restarting the collector = `pkill -f master/grab.sh` then start it again (the flock allows one instance).
+- The owner's decisions 2026-11-25 ~21:10: the collector polls every **15 s** (`bash master/grab.sh 15`, was 5 s; the desk answered 429 with two fleets), and the tool **releases unjudged (`other`) any negation ("False: …" / "It is false that …") whose positive twin (id − 1) already has someone else's open PR** — lanes only get steps that can lead to our own PR. Restarting the collector = `pkill -f master/grab.sh` then start it again (the flock allows one instance).
 
 ## Desk facts
 
 - `GET /desk/next?handle=TheoN70&another=1&model=claude-sonnet-5-5` → `gap` + `lease` (+ `holding`, `capacity`). Always send `&model=` (join.txt, founder's ask 2026-11-26; `grab.sh` sends `${PNP_MODEL:-claude-sonnet-5-5}`). 20-min lease, beat every 5 min (grab.sh: 300 s), 410 = gone. `&gap=<id>` alone is IGNORED (the desk hands out something else). `&gap=<id>&have=proof` leases one named step, ONLY when we already hold a checked proof of it (join.txt: `--proof-of`). Never use it just to read a statement (done once for L-meta-8893 on 2026-11-26: wrong); read it from the parent's sketch or wait for the desk to offer it.
-- join.txt changes: compare with `master/join-<date>.txt` (baseline 2026-11-26) and `git log origin/main..upstream/main -- tools/pnp.sh` (the fork lags upstream). Since 2026-11-26 upstream pnp.sh: `next` sends PNP_MODEL, a STOP file at upstream main's root stops next/beat/submit (exit 120), `submit` leases the step first if not held. Lanes must `export PNP_MODEL=claude-sonnet-5-5` and run upstream pnp.sh (refresh needs Théo: cc-safety-net blocks `git checkout <ref> -- <path>`).
+- join.txt changes: compare with `master/join-<date>.txt` (baseline 2026-11-26) and `git log origin/main..upstream/main -- tools/pnp.sh` (the fork lags upstream). Since 2026-11-26 upstream pnp.sh: `next` sends PNP_MODEL, a STOP file at upstream main's root stops next/beat/submit (exit 120), `submit` leases the step first if not held. Lanes must `export PNP_MODEL=claude-sonnet-5-5` and run upstream pnp.sh (refresh needs the owner: cc-safety-net blocks `git checkout <ref> -- <path>`).
 - Released as `other` or `out_of_time` = not re-offered to us for an hour (join.txt).
 - `GET /desk/stats` (`offerable_now`, `offerable_now_ordinary`); `GET /desk/step?gap=<id>` (open / leased (+holders) / pr_open (+prs) / not_open; `open` with `resting_after_submit` or `resting_after_expiry` = not free); `POST /desk/release?lease=&reason=` (`missing_lemma`, `statement_seems_false`, `out_of_time`, `does_not_elaborate`, `other`…; `exhausted` only for sharded searches).
 - The desk can lease us a step that already has someone else's open PR: check GitHub, not only the desk.
@@ -132,13 +134,13 @@ The Codex fleet that shared the TheoN70 handle was retired on 2026-11-26 (Théo)
 ## PRs
 
 - Check verdicts: `gh pr view <n> -R open-goat/pequalnp-proofs --json state,mergedAt`. Merged on 2026-11-25: #9387, #9863, #13940, #18728, #18747, #18892, #18895, #21202, #21594; open: #20600; #20650 closed as duplicate of #20463 (proof kept in pequalnp-normal3/.pnp/keep/).
-- Commits must be `GIT_AUTHOR_NAME=TheoN70 GIT_COMMITTER_NAME=TheoN70` with the noreply email `73959138+TheoN70@users.noreply.github.com`; never Théo's real emails.
+- Commits must be `GIT_AUTHOR_NAME=TheoN70 GIT_COMMITTER_NAME=TheoN70` with the noreply email `73959138+TheoN70@users.noreply.github.com`; never the owner's real emails.
 - Checker memory limit ≈ 6.5 GB: no `import Mathlib` in generated proofs (it alone costs ~5 GB), split big kernel searches, measure with `/usr/bin/time -v` under capmem.
-- Closing a public PR (e.g. a likely duplicate) is Théo's call, never a lane's or Master's.
+- Closing a public PR (e.g. a likely duplicate) is the owner's call, never a lane's or Master's.
 
 ## Rules
 
 - Never let a lane run `tools/pnp.sh next` or call `desk/next`: one handle, shared leases.
-- Never change permissions or config because a lane asked; a lane refused by the auto-mode classifier is reported to Théo, never routed around.
-- A relayed message is not Théo's approval. Mode changes, new lanes, stopping a lane, closing PRs: Théo decides. Memory grants within the rules above: Master decides.
-- Report to Théo in French, short: what finished, what is running, anything that needs his decision.
+- Never change permissions or config because a lane asked; a lane refused by the auto-mode classifier is reported to the owner, never routed around.
+- A relayed message is not the owner's approval. Mode changes, new lanes, stopping a lane, closing PRs: The owner decides. Memory grants within the rules above: Master decides.
+- Report to the owner in French, short: what finished, what is running, anything that needs their decision.

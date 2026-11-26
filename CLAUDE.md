@@ -1,6 +1,8 @@
 # pequalnp fleet harness
 
-Read by every Claude session working under `~/Bureau/Boulot/penp/` (`penp/CLAUDE.md` is a symlink to this file).
+`$PENP` is the fleet root: the folder that holds `harness/`, the `pequalnp-*` clones and `work/` (sessions start in it). In a shell where it is unset, `export PENP=<that folder>` first.
+
+Read by every Claude session working under `$PENP/` (`$PENP/CLAUDE.md` is a symlink to this file).
 It describes the whole harness: who does what, where things are, how a step flows, and every tool.
 Family-by-family solving recipes are in `fleet-tools/README.md` (the playbook); the role procedures are in the skills.
 
@@ -167,7 +169,7 @@ search), `restrict.py` (signed size of each restriction of a 6-input table, via 
 - Learned something reusable → one line in `fleet-tools/README.md`. A new reusable tool → this repo (ask Harness), with
   script-relative paths, never `/home/...`; then a row in this file.
 - This repo is public: no secrets, tokens, or private data. Check before every push (command in the `harness` skill).
-- cc-safety-net may refuse a command: report it to Théo, never work around it.
+- cc-safety-net may refuse a command: report it to the owner, never work around it.
 
 ## Known gaps (Harness backlog, from Orchestrator 2026-11-26)
 
