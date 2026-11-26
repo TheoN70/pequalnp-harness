@@ -10,6 +10,7 @@
 
   taskset -c "$(fleet-tools/slots 4)" fleet-tools/capmem -m 6G <cmd>     # fails before starting anything if no room
 
+A process stopped with SIGSTOP (state T) and pinned to some cores counts as busy on them (it will resume there).
 Rules: the last 2 cores are never handed out (the desktop app and the sessions live there); a core is free when it was
 below 50 % busy during the sample; at most BUDGET = 14 solvers in all, a solver being a process using >= 50 % of a core
 (a multi-threaded one counts once per core it uses). Read-only: it only reads /proc.
@@ -37,7 +38,7 @@ def proc_ticks():
         try:
             st = open(f"/proc/{pid}/stat").read().rsplit(")", 1)
             f = st[1].split()
-            t[int(pid)] = (int(f[11]) + int(f[12]), st[0].split("(", 1)[1])
+            t[int(pid)] = (int(f[11]) + int(f[12]), st[0].split("(", 1)[1], f[0])  # f[0] = state (T = stopped)
         except (OSError, IndexError):
             pass
     return t
@@ -50,9 +51,19 @@ def sample(dt=1.0):
     load = {c: round(100 * (1 - (c1[c][0] - c0[c][0]) / max(1, c1[c][1] - c0[c][1]))) for c in c1}
     hz = os.sysconf("SC_CLK_TCK")
     solvers = []
-    for pid, (ticks, comm) in p1.items():
+    for pid, (ticks, comm, st) in p1.items():
         if pid in p0 and pid != os.getpid():
             pct = round(100 * (ticks - p0[pid][0]) / hz / dt)
+            if st == "T":  # a paused (SIGSTOP) solver pinned to its cores still owns them: it resumes there
+                try:
+                    aff = sorted(os.sched_getaffinity(pid))
+                except OSError:
+                    aff = []
+                if aff and len(aff) < os.cpu_count():
+                    for c in aff:
+                        load[c] = max(load.get(c, 0), 100)
+                    solvers.append((pid, comm + " (stopped)", 100 * len(aff), aff))
+                continue
             if pct >= BUSY:
                 try:
                     aff = sorted(os.sched_getaffinity(pid))
