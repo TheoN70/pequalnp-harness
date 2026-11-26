@@ -1,0 +1,7 @@
+graphviz==0.21
+more-itertools==11.2.1
+Pebble==5.2.3
+python-sat==1.9.dev25
+six==1.17.0
+sortedcontainers==2.4.0
+typing_extensions==4.16.0

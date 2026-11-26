@@ -31,6 +31,9 @@ The harness expects to sit in `$PENP/harness/`, next to the clones it drives:
 
     make -C fleet-tools
     python3 -m venv fleet-tools/sat-venv && fleet-tools/sat-venv/bin/pip install -r fleet-tools/requirements.txt
+    make -C fleet-tools cirbo                      # Cirbo, pinned, in ../work/tools (network once)
+    uv tool install lean-lsp-mcp==0.33.0           # Lean MCP server
+    ln -s harness/.mcp.json ../.mcp.json           # from penp/harness: sessions started in penp/ get it
     cd .. && ln -s harness/master master && ln -s harness/fleet-tools fleet-tools && mkdir -p .claude && ln -s ../harness/skills .claude/skills
 
 Then start the collector from the Master session: `bash master/grab.sh 15`.

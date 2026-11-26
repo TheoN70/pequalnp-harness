@@ -56,12 +56,12 @@ Lanes reply to `Master`; tool requests go to `Harness`.
       master -> harness/master             the skills and lanes use these paths
       fleet-tools -> harness/fleet-tools
       .claude/skills -> ../harness/skills
-      .mcp.json                lean-lsp MCP server (see "Lean tooling")
+      .mcp.json -> harness/.mcp.json   lean-lsp MCP server (see "Lean tooling")
       pequalnp-proofs/         shared clone (origin = TheoN70 fork, upstream = open-goat); lane Hard's worktree; owns lean/.lake/packages
       pequalnp-normal*/        one detached worktree per lane (removed 2026-11-26 in single-problem mode: the lane skill recreates it;
                                old .pnp/ folders, kept proofs and scripts in master/backup-proofs/lanes/<lane>/)
       work/<id>/               scratch of a hard step (STATUS.md, FOUND.txt, REFUTED.txt, sub-folders per method)
-      work/tools/              Cirbo source + venv
+      work/tools/              Cirbo source + venv, installed by `make -C fleet-tools cirbo`
       results.tsv              one line per lease (Master writes it)
 
 Run state, never committed: `master/leases/`, `master/verdicts.txt`, `master/mem-grants`, `master/backup-proofs/`,
@@ -148,8 +148,8 @@ matching; `rect_cover_9294.py` one rectangle-cover instance. **`circsat.py`**: t
 `LinkN.enc2`, same numbering, so UNSAT certificates replay in `PEqualNP.Library.LRAT`): `cnf` / `solve` / `decode`,
 `--rows` for CEGAR, `--no-not` for AND/OR only (search only); JSON output feeds `circuit2lean.py`; `--demo` checks
 minimum sizes against brute force on all 2- and 3-input functions. **Cirbo** (exact circuit synthesis by SAT, SPbSAT/cirbo
-commit ca19a9f, MIT) lives in `work/tools/cirbo-src` + `work/tools/cirbo-venv` (the wheel does not build; a `.pth`
-points at the source). pequalnp's model: `basis=[Operation.lnot_, Operation.and_, Operation.or_]` (NOT counts as a
+commit ca19a9f, MIT) lives in `work/tools/cirbo-src` + `work/tools/cirbo-venv`, installed by `make -C fleet-tools cirbo`
+(pinned commit and packages, maj3 self-check; the wheel does not build, so a `.pth` points at the source). pequalnp's model: `basis=[Operation.lnot_, Operation.and_, Operation.or_]` (NOT counts as a
 gate). Cirbo's row j puts input 0 on the most significant bit: build its table by applying f to the input vector (as `work/*/cirbo/run.py` does) and no remap is needed; `circuit2lean.py --reverse-inputs` only for a raw pequalnp table.
 
 ### Lower bounds by LRAT certificate (`fleet-tools/lrat/`, README there)
@@ -198,7 +198,8 @@ A new file in `fleet-tools/` appears by itself; a tool outside it is one line in
 ## Lean tooling
 
 - Lake builds go under `capmem` (a 200–280 KB proof peaks at ~5 GB: `-m 6G` with Master's grant).
-- `penp/.mcp.json` declares the **lean-lsp** MCP server (`lean-lsp-mcp` 0.33, `uv tool install`), started with
+- `.mcp.json` (in this repo; `penp/.mcp.json` links to it) declares the **lean-lsp** MCP server (`lean-lsp-mcp` 0.33:
+  `uv tool install lean-lsp-mcp==0.33.0`), started through `sh` with `~/.local/bin` on `PATH` and
   `--disable-tools lean_build` so no agent rebuilds the shared clone. The agent writing Lean reads diagnostics and goals
   through it instead of full builds.
 - Lanes run on Sonnet; one Fable subagent writes the Lean (lane skill, step 3b).
@@ -221,5 +222,5 @@ A new file in `fleet-tools/` appears by itself; a tool outside it is one line in
 2. ~~Shared SAT encoder~~ done 2026-11-26: `fleet-tools/circsat.py` (enc2 port from L-meta-17389, CLI, decoder, brute-force check).
 3. ~~LRAT oleans builder~~ done 2026-11-26: `fleet-tools/lrat/build_lib.sh` (`--check` to see what is missing).
 4. `pause-watch` counts re-offered judged steps: count only ids absent from `verdicts.txt` and outside `SKIP_CATS`.
-5. Package Cirbo (`make cirbo`, pinned to ca19a9f) and a portable `.mcp.json` (`"command": "lean-lsp-mcp"`).
+5. ~~Package Cirbo and a portable `.mcp.json`~~ done 2026-11-26: `make -C fleet-tools cirbo`, `harness/.mcp.json`.
 6. Later: a pseudo-Boolean certificate checker (VeriPB-style) running in the Lean kernel, to get past the LRAT size limit.
