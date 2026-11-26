@@ -120,12 +120,15 @@ Any other undocumented pequalnp.com URL stays forbidden: never probe one.
 6. A named unit (Master only): `bash master/grab.sh --unit <id> [--proof] <lane|research>` leases exactly that unit
    (`&gap=<id>&another=1`; `--proof` adds `&have=proof`, only with a checked proof in hand), writes `leases/<id>.json` and
    `busy-<lane>`, logs `LEASED` (or `UNIT-REFUSED` + the desk's reason, exit 4). It runs beside the collector, which beats it.
+7. The desk's next unit for a slot (Master only, rule "Always a unit to prove"): `bash master/grab.sh --next <slot>
+   [--kind prove] [--level solid|hard|open]` writes `leases/<id>.json` and `busy-<slot>`, logs `LEASED`; nothing offered:
+   `EMPTY` + `retry_after_s`, exit 5 (wait that long); a unit already held: `UNIT-HELD`, exit 6, never released.
 
 ### Collector files (`master/leases/`)
 
 | File | Meaning |
 |---|---|
-| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` got back a unit already in a `busy-*`: kept, never released) |
+| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` / `--next` got back a unit already in a `busy-*`: kept, never released), `EMPTY` (`--next`: nothing offered, with retry_after_s) |
 | `busy-<lane>` | lane busy; content = step id (empty after BEAT-END). Deleting it reopens the lane |
 | `<id>.json` | raw desk answer: `gap` (id, title, statement, file, module, imports) + `lease` (id) |
 | `last-assigned` | last lane given a step (round-robin pointer) |
@@ -197,7 +200,7 @@ but ~3x bigger per gate: 4x5 is 2.5 MB at s=5, so only small s fit the 512 KiB l
 stays ~4 GB) up to n = 14 (~17 min of the checker's 20). `--demo` self-check |
 | `circuit2lean.py` on `RepSizeAtMost` (one-a-side promise, `Represents`) | detected from the statement: AND/OR circuit on n+m wires (left u = wire u, right v = wire n+v), checked in Python on the n*m promise rows when the graph is `(mask : ℕ).testBit (m * u.val + v.val)`; proof `⟨C0, Monotone2 by cases, size by decide, Represents by decide +kernel⟩` (4x5: ~1 KB, compiles) |
 | `promise_batch.py --one-a-side n m <mask>:<s> ... [-d dir]` | lease-free triage of a promise family (sat-venv python, one core, under capmem): SAT writes `rep_<mask>_<s>.json` for circuit2lean; UNSAT = no AND/OR circuit (triage, not a Lean proof) |
-| `rep_lower_gen.py <lease.json> [-o out.lean]` / `--raw <n> <m> <M> <k> <ident>` | `¬ RepSizeAtMost` (one-a-side promise, refute side) for 5x5 and 4x5 masks, any bound k <= n+m: the merged L_meta_9291 (tb-16's argument) with mask, OO/ZZ, shape (Research's checked 4x5 substitutions) and bound replaced; refuses other shapes, a row/column that does not serve, > 16 one- or zero-points. ~109 KB, compiles in ~20 s / 4.4 GB (21062, 21063 at k=9, 104287 at k=8) |
+| `rep_lower_gen.py <lease.json> [-o out.lean] [--drop-zero p,..]` (lease of the unit or of its negation) / `--raw <n> <m> <M> <k> <ident>` | `¬ RepSizeAtMost` (one-a-side promise, refute side) for 5x5 and 4x5 masks, any bound k <= n+m: the merged L_meta_9291 (tb-16's argument) with mask, OO/ZZ, shape (Research's checked 4x5 substitutions) and bound replaced; refuses other shapes, a row/column that does not serve, > 16 one- or zero-points. ~109 KB, compiles in ~20 s / 4.4 GB (21062, 21063 at k=9, 104287 at k=8) |
 | `six_cert_gen.py` | "six-input monotone f: every AND/OR/NOT circuit has an AND/OR one no larger" (template L_meta_8645) |
 
 Helpers: `cores.py` (core candidates for delete-a-vertex chains, via `liveg`), `core_mirror.py` (sizes the in-kernel

@@ -2,7 +2,7 @@
 (m * u.val + v.val)) k` from the merged L_meta_9291 (5x5, tb-16's argument), with the mask, its one-points OO and
 zero-points ZZ, the shape and the bound replaced.
 
-Usage: python3 -I rep_lower_gen.py <lease.json> [-o out.lean] [--drop-zero p,..]   statement and module from the lease
+Usage: python3 -I rep_lower_gen.py <lease.json> [-o out.lean] [--drop-zero p,..]   statement and module from the lease (a positive statement: its negation)
        python3 -I rep_lower_gen.py --raw <n> <m> <M> <k> <ident> [-o out.lean] [--drop-zero p,..]
          e.g. --raw 4 5 104317 9 L_meta_21063;  --raw 5 5 31523873 9 L_meta_21267 --drop-zero 4
 
@@ -22,7 +22,7 @@ import json, os, re, sys
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 TEMPLATE = os.path.join(HERE, "../../pequalnp-proofs/lean/PEqualNP/Outside/L_meta_9291.lean")
-STMT = re.compile(r"¬\s*\(?\s*PEqualNP\.Represents\.RepSizeAtMost \(fun \(u : Fin (\d+)\) \(v : Fin (\d+)\) => "
+STMT = re.compile(r"(?:¬\s*\(?\s*)?PEqualNP\.Represents\.RepSizeAtMost \(fun (?:\(u : Fin (\d+)\) \(v : Fin (\d+)\)|u v : Fin (\d+)) => "
                   r"\((\d+) : ℕ\)\.testBit \((\d+) \* u\.val \+ v\.val\)\) (\d+)\s*\)?")
 
 
@@ -135,14 +135,18 @@ def main(a):
     elif len(a) == 1:
         d = json.load(open(a[0])); g = d.get("gap", d)
         st = g["statement"].strip()
+        if not st.startswith("¬"):  # the positive unit itself (refuted): prove its negation
+            print("positive statement: writing the proof of its negation", file=sys.stderr)
+            st = "¬ " + st
         mt = STMT.fullmatch(st)
-        if not mt or int(mt[4]) != int(mt[2]):
+        n_, m_ = (int(mt[1]), int(mt[2])) if mt and mt[1] else (int(mt[3]), int(mt[3])) if mt else (0, 0)
+        if not mt or int(mt[5]) != m_:
             sys.exit("statement is not `¬ PEqualNP.Represents.RepSizeAtMost (fun (u : Fin n) (v : Fin m) => "
                      "(M : ℕ).testBit (m * u.val + v.val)) k`")
         ident = g["module"].rsplit(".", 1)[1]
         if not g["module"].startswith("PEqualNP.Outside."):
             sys.exit(f"module {g['module']}: the template lives in PEqualNP.Outside")
-        text = generate(int(mt[1]), int(mt[2]), int(mt[3]), int(mt[5]), ident, st, drop)
+        text = generate(n_, m_, int(mt[4]), int(mt[6]), ident, st, drop)
     else:
         sys.exit(__doc__)
     if out:
