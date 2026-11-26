@@ -1,4 +1,5 @@
-"""Write the Lean proof of a desk step `HasCircuitSize n f k` from a circuit that computes f, or of a one-a-side
+"""Write the Lean proof of a desk step `HasCircuitSize n f k` from a circuit that computes f, of a two-lit step
+(`∃ C, FanInTwo C ∧ C.size ≤ k ∧ ∀ i j : Fin n, ...`, circuit also as the desk sketch `OR(2,4), NOT(5), ...`), or of a one-a-side
 promise step `RepSizeAtMost (fun (u : Fin n) (v : Fin m) => ...) s` from an AND/OR circuit on n+m wires (left vertex u
 = wire u, right v = wire n+v; values checked only on the n*m promise rows; detected from the statement, no flag).
 
@@ -142,6 +143,60 @@ def cofactors(n, k):
     return "\n".join(out)
 
 
+TWO = re.compile(r"∃ C : PEqualNP\.CircuitLowerBounds\.Circuit, PEqualNP\.MetaComplexity\.FanInTwo C ∧ C\.size ≤ (\d+) ∧ "
+                 r"∀ i j : Fin (\d+), C\.eval \(List\.ofFn fun k : Fin \2 => decide \(k = i ∨ k = j\)\) = "
+                 r"\((\d+) : ℕ\)\.testBit \((\d+) \* min i\.val j\.val \+ max i\.val j\.val\)")
+
+
+def parse_sketch(text):
+    """The desk's sketch: `OR(2,4), NOT(5), AND(0,6), ...`; gate k makes wire n + k, the output is the last gate (n is
+    filled in from the statement)."""
+    gates = [[op.lower(), [int(x) for x in args.split(",") if x.strip()]]
+             for op, args in re.findall(r"\b(AND|OR|NOT)\s*\(([^)]*)\)", text)]
+    if not gates:
+        sys.exit("sketch: no AND(a,b) / OR(a,b) / NOT(a) found")
+    return {"n": None, "gates": gates, "output": None}
+
+
+def lean_twolit(gap, c, mt):
+    """`∃ C, FanInTwo C ∧ C.size ≤ k ∧ ∀ i j : Fin n, C.eval (inputs i and j on) = M.testBit (n * min + max)` (the
+    "two-lit function of the graph H" family): circuit, FanInTwo by cases, size and the n*n values by decide."""
+    k, n, M, n2 = int(mt[1]), int(mt[2]), int(mt[3]), int(mt[4])
+    if n2 != n:
+        sys.exit(f"statement indexes the mask with {n2} * min, not n = {n}")
+    if c["n"] is None:  # a sketch: inputs are the n wires, output the last gate
+        c = {"n": n, "gates": c["gates"], "output": n + len(c["gates"]) - 1}
+    check_shape(c, n, k)
+    for i in range(n):
+        for j in range(n):
+            if evaluate(c, [x in (i, j) for x in range(n)]) != bool(M >> (n * min(i, j) + max(i, j)) & 1):
+                sys.exit(f"circuit differs from the statement at i={i}, j={j}")
+    mod, g = gap["module"], len(c["gates"])
+    gl = ", ".join(f"⟨GateOp.{op}, [{', '.join(map(str, a))}]⟩" for op, a in c["gates"])
+    ok = ("  intro g hg\n  simp only [C0, List.mem_cons, List.not_mem_nil, or_false] at hg\n"
+          f"  rcases hg with {' | '.join(['rfl'] * g)} <;> simp") if g else "  intro g hg\n  simp [C0] at hg"
+    text = f"""{chr(10).join('import ' + i for i in gap.get('imports') or ['PEqualNP.Defs'])}
+
+namespace {mod}
+
+open PEqualNP.CircuitLowerBounds PEqualNP.MetaComplexity
+
+/-- {g} gates; wires 0..{n - 1} are the inputs, gate j makes wire {n} + j. -/
+def C0 : Circuit := ⟨[{gl}], {c['output']}⟩
+
+theorem ok0 : FanInTwo C0 := by
+{ok}
+
+end {mod}
+
+theorem {mod} : {gap['statement'].strip()} :=
+  ⟨{mod}.C0, {mod}.ok0, by decide, by decide +kernel⟩
+"""
+    if len(text.encode()) > MAX_BYTES:
+        sys.exit(f"file is {len(text.encode())} bytes > 512 KiB")
+    return text
+
+
 REP = re.compile(r"PEqualNP\.Represents\.RepSizeAtMost \(fun \(u : Fin (\d+)\) \(v : Fin (\d+)\) => (.*)\) (\d+)", re.S)
 REP_MASK = re.compile(r"\((\d+) : ℕ\)\.testBit \((\d+) \* u\.val \+ v\.val\)")
 
@@ -201,6 +256,11 @@ def lean(gap, c, split=None):
     mt = REP.fullmatch(gap["statement"].strip())
     if mt:
         return lean_rep(gap, c, mt)
+    mt = TWO.fullmatch(gap["statement"].strip())
+    if mt:
+        return lean_twolit(gap, c, mt)
+    if c["n"] is None:
+        sys.exit("the sketch format (OR(a,b), NOT(a)...) is read only for the two-lit statement; give JSON or .bench")
     m = re.fullmatch(r"PEqualNP\.MetaComplexity\.HasCircuitSize (\d+) (\(fun .*\)) (\d+)", gap["statement"].strip(), re.S)
     if not m:
         sys.exit("statement is neither `PEqualNP.MetaComplexity.HasCircuitSize n (fun ...) k` nor `PEqualNP.Represents.RepSizeAtMost (fun (u : Fin n) (v : Fin m) => ...) s`")
@@ -271,7 +331,8 @@ def main(argv):
     d = json.load(open(rest[0]))
     gap = d.get("gap", d)
     text = open(rest[1]).read()
-    c = json.loads(text) if text.lstrip().startswith("{") else parse_bench(text)
+    c = json.loads(text) if text.lstrip().startswith("{") else \
+        parse_sketch(text) if re.match(r"\s*(AND|OR|NOT)\s*\(", text) else parse_bench(text)
     if rev:
         c = reverse_inputs(c)
     if table:
