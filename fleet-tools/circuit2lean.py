@@ -1,6 +1,6 @@
 """Write the Lean proof of a desk step `HasCircuitSize n f k` from a circuit that computes f.
 
-Usage: python3 -I circuit2lean.py <lease-or-gap.json> <circuit> [--reverse-inputs] [--table HEX] [-o out.lean]
+Usage: python3 -I circuit2lean.py <lease-or-gap.json> <circuit> [--reverse-inputs] [--table HEX] [--split K] [-o out.lean]
 
 <circuit> is either
   - JSON: {"n": 3, "gates": [["and", [0, 1]], ["not", [3]], ...], "output": 5}
@@ -13,14 +13,20 @@ Usage: python3 -I circuit2lean.py <lease-or-gap.json> <circuit> [--reverse-input
   Not needed when the Cirbo table was built from f applied to the input vector, as work/*/cirbo/run.py does.
 --table HEX: also check the circuit in Python against the pequalnp table (bit r = f on row r, input i = bit i of r).
 
+--split K: fix the first K inputs; one `decide +kernel` lemma per prefix (2^(n-K) rows each), joined by `match`.
+  Default n-8 (leaves of 256 rows). The kernel's memory grows with the rows of ONE check, not with n: measured
+  2026-11-26 (one core, `lake env lean`): 1024 rows in one check 5.8 GB (the checker allows ~6.5), 4096 rows > 8 GB;
+  with the default, n=10 3.5 GB / 26 s, n=12 4.0 GB / 120 s, n=14 4.6 GB / 506 s. Time still doubles per input
+  (~30 ms a row) and the checker replays the kernel twice within 20 min: n = 14 (~17 min) is the ceiling.
+
 The proof (same shape as the merged L_meta_1001): the circuit as a `def`, `FanInTwo` by cases, the size by
 `decide`, and the values on all 2^n rows by `decide +kernel`. The Lean checker is the judge: run
 `tools/pnp.sh check <id>` (under capmem) on the written file.
-ponytail: one `decide +kernel` over all 2^n rows; fine to n ~ 12, split by cofactors when a step needs more.
 """
 import json, re, sys
 
 MAX_BYTES = 512 * 1024
+SPLIT_AT = 8  # default --split = n - SPLIT_AT: leaves of 256 rows (measured 2026-11-26, see the docstring)
 
 
 def parse_bench(text):
@@ -113,11 +119,35 @@ def check_table(c, hexs):
             sys.exit(f"circuit differs from the table on row {r}")
 
 
-def lean(gap, c):
+def cofactors(n, k):
+    """ev0 : ∀ b0..b(n-1), C0.eval [..] = F (..). With k > 0 the first k inputs are fixed: one `decide +kernel` lemma per
+    prefix (2^k of them, 2^(n-k) rows each, checked separately), joined by a binary tree of `match` on the Booleans."""
+    def stmt(prefix):
+        vals = [str(bool(int(b))).lower() for b in prefix] + [f"b{i}" for i in range(len(prefix), n)]
+        free = " ".join(f"b{i}" for i in range(len(prefix), n))
+        body = f"C0.eval [{', '.join(vals)}] = F (fun i => [{', '.join(vals)}].getD i.val false)"
+        return f"∀ {free} : Bool,\n    {body}" if free else body
+    name = lambda p: "ev0" if not p else "ev_" + p
+    out = []
+    for d in range(k, -1, -1):  # leaves first: Lean needs each lemma before its use
+        for v in range(2 ** d):
+            p = format(v, f"0{d}b") if d else ""
+            if d == k:
+                out.append(f"theorem {name(p)} : {stmt(p)} := by\n  decide +kernel\n")
+            else:
+                out.append(f"theorem {name(p)} : {stmt(p)} := fun b{d} =>\n  match b{d} with\n"
+                           f"  | false => {name(p + '0')}\n  | true => {name(p + '1')}\n")
+    return "\n".join(out)
+
+
+def lean(gap, c, split=None):
     m = re.fullmatch(r"PEqualNP\.MetaComplexity\.HasCircuitSize (\d+) (\(fun .*\)) (\d+)", gap["statement"].strip(), re.S)
     if not m:
         sys.exit("statement is not `PEqualNP.MetaComplexity.HasCircuitSize n (fun ...) k`")
     n, fun, k = int(m[1]), m[2], int(m[3])
+    split = max(0, n - SPLIT_AT) if split is None else split
+    if not 0 <= split <= n:
+        sys.exit(f"--split {split}: must be between 0 and n = {n}")
     check_shape(c, n, k)
     mod, g = gap["module"], len(c["gates"])
     gl = ", ".join(f"⟨GateOp.{op}, [{', '.join(map(str, a))}]⟩" for op, a in c["gates"])
@@ -142,9 +172,7 @@ def C0 : Circuit := ⟨[{gl}], {c['output']}⟩
 theorem ok0 : FanInTwo C0 := by
 {ok}
 
-theorem ev0 : ∀ {' '.join(bs)} : Bool,
-    C0.eval [{', '.join(bs)}] = F (fun i => [{', '.join(bs)}].getD i.val false) := by
-  decide +kernel
+{cofactors(n, split)}
 
 theorem ofFn{n} (x : Fin {n} → Bool) : List.ofFn x = [{', '.join(xs)}] := by
   simp [List.ofFn_succ]
@@ -169,13 +197,14 @@ theorem {mod} : {gap['statement'].strip()} :=
 
 def main(argv):
     args = argv[1:]
-    out = rev = table = None
+    out = rev = table = split = None
     rest = []
     while args:
         a = args.pop(0)
         if a == "-o": out = args.pop(0)
         elif a == "--reverse-inputs": rev = True
         elif a == "--table": table = args.pop(0)
+        elif a == "--split": split = int(args.pop(0))
         else: rest.append(a)
     if len(rest) != 2:
         sys.exit(__doc__)
@@ -187,7 +216,7 @@ def main(argv):
         c = reverse_inputs(c)
     if table:
         check_table(c, table)
-    body = lean(gap, c)
+    body = lean(gap, c, split)
     if out:
         open(out, "w").write(body)
         print(f"{out}: {len(c['gates'])} gates, {len(body.encode())} bytes", file=sys.stderr)
@@ -204,6 +233,13 @@ def demo():
     assert reverse_inputs(reverse_inputs(c)) == c
     lnot = parse_bench("INPUT(a)\nINPUT(b)\nOUTPUT(y)\nt = LNOT(a, b)\ny = IFF(t)\n")
     assert lnot == {"n": 2, "gates": [["not", [0]]], "output": 2}, lnot
+    # cofactor tree: 2^k leaves by decide, 2^k - 1 match nodes, every name defined before use, root ev0
+    t = cofactors(3, 2)
+    names = re.findall(r"theorem (\w+) :", t)
+    assert names == ["ev_00", "ev_01", "ev_10", "ev_11", "ev_0", "ev_1", "ev0"], names
+    assert t.count("decide +kernel") == 4 and "[true, false, b2]" in t
+    assert cofactors(3, 0).count("decide +kernel") == 1 and "theorem ev0 : ∀ b0 b1 b2" in cofactors(3, 0)
+    assert "theorem ev_111 : C0.eval [true, true, true]" in cofactors(3, 3)  # k = n: closed rows
     print("demo ok")
 
 

@@ -166,7 +166,8 @@ library for steps that may import only `PEqualNP.Defs`. Works for n ≤ 4; n = 5
 | `onenot_tri8_gen.py` | same, 8 vertices, triangle core (L_meta_14144) |
 | `onenot_core8_gen.py` | same, 8 vertices, any small core checked in-kernel; example `onenot_core8_example.json` |
 | `onenot_lift8_gen.py` | same, 8 vertices, lifted from a merged 7-vertex proof of G − v; candidates from `lift_find.py` |
-| `circuit2lean.py <lease.json> <circuit.json or .bench> [--reverse-inputs] [--table HEX] [-o out.lean]` | any `HasCircuitSize n f k` (upper / search) step from a circuit: Cirbo `.bench` or pequalnp-numbered JSON; checks shape, gate count ≤ k, 512 KiB, optional table; proof = circuit + `decide +kernel` over 2^n rows (to n ~ 12). `--demo` self-check |
+| `circuit2lean.py <lease.json> <circuit.json or .bench> [--reverse-inputs] [--table HEX] [-o out.lean]` | any `HasCircuitSize n f k` (upper / search) step from a circuit: Cirbo `.bench` or pequalnp-numbered JSON; checks shape, gate count ≤ k, 512 KiB, optional table; proof = circuit + `decide +kernel` over 2^n rows, cut by `--split` into 256-row cofactor lemmas (default; memory
+stays ~4 GB) up to n = 14 (~17 min of the checker's 20). `--demo` self-check |
 | `six_cert_gen.py` | "six-input monotone f: every AND/OR/NOT circuit has an AND/OR one no larger" (template L_meta_8645) |
 
 Helpers: `cores.py` (core candidates for delete-a-vertex chains, via `liveg`), `core_mirror.py` (sizes the in-kernel
@@ -218,7 +219,7 @@ A new file in `fleet-tools/` appears by itself; a tool outside it is one line in
 
 ## Known gaps (Harness backlog, from Orchestrator 2026-11-26)
 
-1. ~~Circuit → Lean file~~ done 2026-11-26: `fleet-tools/circuit2lean.py` (regenerates merged L_meta_1001; maj3 positive test). Left: cofactor splitting of the `decide` past n ~ 12.
+1. ~~Circuit → Lean file~~ done 2026-11-26: `fleet-tools/circuit2lean.py` (regenerates merged L_meta_1001; maj3 positive test); cofactor splitting added the same day (`--split`, n <= 14).
 2. ~~Shared SAT encoder~~ done 2026-11-26: `fleet-tools/circsat.py` (enc2 port from L-meta-17389, CLI, decoder, brute-force check).
 3. ~~LRAT oleans builder~~ done 2026-11-26: `fleet-tools/lrat/build_lib.sh` (`--check` to see what is missing).
 4. `pause-watch` counts re-offered judged steps: count only ids absent from `verdicts.txt` and outside `SKIP_CATS`.
