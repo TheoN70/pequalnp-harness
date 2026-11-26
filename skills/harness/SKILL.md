@@ -67,6 +67,9 @@ One line each: date, what happened (with the measurement), the rule. Add one whe
 
 - 2026-11-26: before writing a Lean lemma, grep the library: the cube cover I was asked to build was already upstream (`Library/LRAT/Cube.lean`, `PromiseCube.lean`); only the driver was missing. And cubes split the solving, not the proof: the total LRAT of 4x5 promise pieces grows ~3x per gate (2.5 MB at s=5), so measure the total size on a small s before promising a refute.
 
+- 2026-11-26: a generator that changes one number (the bound k) must change it everywhere the template states it: my first `rep_lower_gen.py` moved `lower`'s argument but not the final statement; only compiling a k never tried before (k=8) caught it. Test every new parameter on a case compiled end to end, not only cases that reproduce known files.
+- 2026-11-26: `open(p, 'w').write(f(open(p).read()))` empties `p` before reading it; an assertion in `f` then left CLAUDE.md at 0 bytes and lost another session's uncommitted paragraph (rebuilt from its diff). Read into a variable first; and before editing a file that holds someone else's uncommitted change, save `git diff` of it to the scratchpad.
+
 ## Never
 
 - Call `desk/next`, `tools/pnp.sh next`, release or submit: leases belong to Master and the lanes.
