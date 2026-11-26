@@ -2,8 +2,9 @@
 (m * u.val + v.val)) k` from the merged L_meta_9291 (5x5, tb-16's argument), with the mask, its one-points OO and
 zero-points ZZ, the shape and the bound replaced.
 
-Usage: python3 -I rep_lower_gen.py <lease.json> [-o out.lean]               statement, module and imports from the lease
-       python3 -I rep_lower_gen.py --raw <n> <m> <M> <k> <ident> [-o out.lean]  e.g. --raw 4 5 104317 9 L_meta_21063
+Usage: python3 -I rep_lower_gen.py <lease.json> [-o out.lean] [--drop-zero p,..]   statement and module from the lease
+       python3 -I rep_lower_gen.py --raw <n> <m> <M> <k> <ident> [-o out.lean] [--drop-zero p,..]
+         e.g. --raw 4 5 104317 9 L_meta_21063;  --raw 5 5 31523873 9 L_meta_21267 --drop-zero 4
 
 Shapes: 5x5 (the template as is) and 4x5 (Research-L-meta-21063's substitutions, work/L-meta-21063/lean/gen.py,
 checked: 21062 and 21063 compile, 109 KB, 17 s, 4.4 GB). Other shapes are refused: the template's 5s and 10s mean
@@ -11,7 +12,9 @@ several things (rows, columns, wires) and each shape needs its substitutions che
 k: the first argument of `lower`; the in-kernel search depth is k + 1 - (n + m) (0 below n + m - 1). Refused when
 k > n + m (deeper searches are untested) or when some row or column does not serve (the argument needs every input:
 each row has a 1 in a column where another row has a 0, each column a 1 in a row where another column has a 0), or
-when OO or ZZ has more than 16 points (the bit-matrix layout). Lean is the judge: compile it (`lake env lean`, ~5 GB,
+when OO or ZZ has more than 16 points (the bit-matrix layout). More than 16 zero-points: --drop-zero leaves some
+out of ZZ (any subset of the zeros is sound, ZZ_ok checks each listed one; whether the in-kernel search still
+succeeds is Lean's call: Research-L-meta-21267 dropped point 4 of 31523873, 17 zeros, and it compiled). Lean is the judge: compile it (`lake env lean`, ~5 GB,
 capmem -m 6G), then `tools/pnp.sh check`.
 Template: pequalnp-proofs/lean/PEqualNP/Outside/L_meta_9291.lean (next to harness/, read at run time).
 """
@@ -23,7 +26,7 @@ STMT = re.compile(r"¬\s*\(?\s*PEqualNP\.Represents\.RepSizeAtMost \(fun \(u : F
                   r"\((\d+) : ℕ\)\.testBit \((\d+) \* u\.val \+ v\.val\)\) (\d+)\s*\)?")
 
 
-def check_mask(n, m, M):
+def check_mask(n, m, M, drop=()):
     A = [[M >> (m * u + v) & 1 for v in range(m)] for u in range(n)]
     for u in range(n):
         if not any(A[u][v] and not A[w][v] for v in range(m) for w in range(n)):
@@ -32,9 +35,12 @@ def check_mask(n, m, M):
         if not any(A[u][v] and not A[u][x] for u in range(n) for x in range(m)):
             sys.exit(f"column v{v} does not serve (no 1 where another column has a 0): the argument needs every input")
     OO = [p for p in range(n * m) if M >> p & 1]
-    ZZ = [p for p in range(n * m) if not M >> p & 1]
+    if any(p >= n * m or M >> p & 1 for p in drop):
+        sys.exit(f"--drop-zero {list(drop)}: each must be a zero-point of the mask")
+    ZZ = [p for p in range(n * m) if not M >> p & 1 and p not in drop]
     if len(OO) > 16 or len(ZZ) > 16:
-        sys.exit(f"{len(OO)} one-points, {len(ZZ)} zero-points: the template holds at most 16 of each")
+        sys.exit(f"{len(OO)} one-points, {len(ZZ)} zero-points kept: the template holds at most 16 of each"
+                 + (" (leave zeros out with --drop-zero p,..)" if len(ZZ) > 16 else ""))
     return OO, ZZ
 
 
@@ -82,13 +88,13 @@ def to_4x5(t, mask):
     return t.replace("c1023", "c511")
 
 
-def generate(n, m, M, k, ident, stmt=None):
+def generate(n, m, M, k, ident, stmt=None, drop=()):
     if (n, m) not in ((5, 5), (4, 5)):
         sys.exit(f"shape {n}x{m} not supported (only 5x5 and 4x5, whose substitutions were checked)")
     N, D = n + m, 2 ** (n + m) - 1
     if not 1 <= k <= N:
         sys.exit(f"k = {k}: supported 1 <= k <= n + m = {N} (deeper in-kernel searches are untested)")
-    OO, ZZ = check_mask(n, m, M)
+    OO, ZZ = check_mask(n, m, M, drop)
     src = open(TEMPLATE).read()
     head, tail = src.split("def OO : List ℕ :=", 1)
     rest = tail.split("\n", 2)[2]  # drop the template's OO rest and ZZ line
@@ -119,11 +125,13 @@ def generate(n, m, M, k, ident, stmt=None):
 
 
 def main(a):
-    out = None
+    out, drop = None, ()
     if "-o" in a:
         i = a.index("-o"); out = a[i + 1]; del a[i:i + 2]
+    if "--drop-zero" in a:
+        i = a.index("--drop-zero"); drop = tuple(map(int, a[i + 1].split(","))); del a[i:i + 2]
     if a[:1] == ["--raw"] and len(a) == 6:
-        n, m, M, k = map(int, a[1:5]); text = generate(n, m, M, k, a[5])
+        n, m, M, k = map(int, a[1:5]); text = generate(n, m, M, k, a[5], drop=drop)
     elif len(a) == 1:
         d = json.load(open(a[0])); g = d.get("gap", d)
         st = g["statement"].strip()
@@ -134,7 +142,7 @@ def main(a):
         ident = g["module"].rsplit(".", 1)[1]
         if not g["module"].startswith("PEqualNP.Outside."):
             sys.exit(f"module {g['module']}: the template lives in PEqualNP.Outside")
-        text = generate(int(mt[1]), int(mt[2]), int(mt[3]), int(mt[5]), ident, st)
+        text = generate(int(mt[1]), int(mt[2]), int(mt[3]), int(mt[5]), ident, st, drop)
     else:
         sys.exit(__doc__)
     if out:
