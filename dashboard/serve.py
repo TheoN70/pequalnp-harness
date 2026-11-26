@@ -347,10 +347,24 @@ def parse_subagent(meta_path):
             "touched": os.path.getmtime(log) if os.path.exists(log) else 0}
 
 
+def live_sessions():
+    """Session ids whose Claude process is still running: each live session registers ~/.claude/sessions/<pid>.json
+    (only the .json files are read, never the .key ones)."""
+    live = set()
+    for f in glob.glob(os.path.expanduser("~/.claude/sessions/*.json")):
+        try:
+            d = json.load(open(f))
+            if os.path.exists(f"/proc/{int(d['pid'])}"):
+                live.add(d["sessionId"])
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    return live
+
+
 def research_sessions(titles):
-    out = []
+    out, live = [], live_sessions()
     for sid, title in dict(titles).items():
-        if not str(title).startswith("Research"):
+        if not str(title).startswith("Research") or sid not in live:  # only the sessions still running
             continue
         path = os.path.join(TRANSCRIPTS, sid + ".jsonl")
         try:

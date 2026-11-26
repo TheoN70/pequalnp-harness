@@ -227,8 +227,8 @@ search), `restrict.py` (signed size of each restriction of a 6-input table, via 
 
 ## Dashboard
 
-`python3 harness/dashboard/serve.py [port]` then http://127.0.0.1:8377/ : live page (refresh 5 s) with the Research sessions
-(state, subagents running or finished, messages with other sessions), the research in
+`python3 harness/dashboard/serve.py [port]` then http://127.0.0.1:8377/ : live page (refresh 5 s) with the Research sessions still running (a live
+`~/.claude/sessions/<pid>.json`; closed ones are hidden) (state, subagents running or finished, messages with other sessions), the research in
 `work/` (STATUS files, running solvers), lanes, desk stats, outcomes per category and per hour, cores / memory /
 active solvers against the budget of 14, fleet processes, PRs, the collector log, and every tool with how often the
 sessions called it (counted in the Bash commands of the Claude transcripts of this folder; commands are never served).
