@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flotte pequalnp</title>
+<style>
+:root{
+  --page:#0b0c0f; --surface:#15171c; --surface2:#1c1f26; --line:#2a2e37; --axis:#3a3f4a;
+  --ink:#f0efec; --ink2:#c3c2b7; --muted:#8b8d94;
+  --blue:#3987e5; --orange:#d95926; --aqua:#199e70; --yellow:#c98500; --magenta:#d55181; --grey:#5c5f68;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --glow:#6da7ec;
+  --mono:ui-monospace,"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--page)}
+body{margin:0;color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;
+  background:
+    radial-gradient(900px 500px at 12% -10%,rgba(57,135,229,.16),transparent 60%),
+    radial-gradient(800px 500px at 95% 0%,rgba(213,81,129,.10),transparent 60%),
+    linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px) 0 0/100% 32px,
+    linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px) 0 0/32px 100%,var(--page)}
+.wrap{max-width:1500px;margin:0 auto;padding:20px 16px 60px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.logo{font:700 26px/1 var(--mono);letter-spacing:-1px;background:linear-gradient(100deg,#6da7ec,#d55181 60%,#fab219);-webkit-background-clip:text;background-clip:text;color:transparent}
+header h1{font-size:16px;font-weight:600;margin:0;color:var(--ink2)}
+.sp{flex:1}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:4px 10px;border:1px solid var(--line);border-radius:99px;background:var(--surface);font-size:12px;color:var(--ink2);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--good);box-shadow:0 0 0 0 rgba(12,163,12,.7);animation:pulse 2s infinite}
+.dot.off{background:var(--crit)} .dot.wait{background:var(--warn)}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(12,163,12,0)}100%{box-shadow:0 0 0 0 rgba(12,163,12,0)}}
+.grid{display:grid;gap:14px;margin-bottom:14px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.g2{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)} .g11{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media(max-width:980px){.g2,.g11{grid-template-columns:minmax(0,1fr)}}
+.card{background:linear-gradient(180deg,var(--surface2),var(--surface));border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-width:0;position:relative}
+.card h2{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.card h2 .sp{flex:1} .card h2 small{text-transform:none;letter-spacing:0;font-weight:400}
+.kpi .v{font:600 32px/1.1 var(--mono);letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.kpi .s{font-size:12px;color:var(--ink2);margin-top:6px}
+.kpi::after{content:"";position:absolute;left:16px;right:16px;top:0;height:2px;border-radius:2px;background:var(--c,var(--axis));opacity:.9}
+.seg{display:flex;gap:3px;margin-top:8px}.seg i{flex:1;height:8px;border-radius:2px;background:var(--line)}.seg i.on{background:var(--blue)}.seg i.over{background:var(--crit)}
+.mono{font-family:var(--mono)} .muted{color:var(--muted)} .small{font-size:12px}
+.badge{display:inline-block;padding:1px 7px;border-radius:6px;border:1px solid var(--line);font-size:11px;color:var(--ink2);white-space:nowrap}
+.badge.good{border-color:var(--good);color:#7fd87f}.badge.crit{border-color:var(--crit);color:#f09a9a}.badge.warn{border-color:var(--warn);color:var(--warn)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink2);margin-bottom:10px}
+/* research */
+.step{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:rgba(0,0,0,.18)}
+.step .id{font:600 16px var(--mono)} .step .ttl{color:var(--ink2);font-size:13px;margin:2px 0 8px}
+.method{border-top:1px solid var(--line);padding:8px 0}
+.method summary{cursor:pointer;display:flex;gap:10px;align-items:center;list-style:none;flex-wrap:wrap}
+.method summary::-webkit-details-marker{display:none}
+.method summary::before{content:"▸";color:var(--muted);transition:transform .15s}.method[open] summary::before{transform:rotate(90deg)}
+.method .nm{font:600 13px var(--mono)} .method .ex{flex-basis:100%;color:var(--ink2);font-size:12.5px;padding-left:18px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+pre{font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-word;color:var(--ink2);background:#0d0e12;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:420px;overflow:auto;margin:8px 0 0}
+.run{color:#8fc0f5}.run::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--glow);margin-right:5px;animation:blink 1.2s infinite alternate}
+@keyframes blink{to{opacity:.25}}
+/* machine */
+.cores{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+.core{aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;font:600 11px var(--mono);color:#fff;border:1px solid rgba(255,255,255,.06);transition:background .8s}
+.core.res{outline:1px dashed var(--muted);outline-offset:1px}
+.bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%;border-radius:5px;background:var(--blue);transition:width .8s}
+.row{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--ink2);margin:10px 0 4px}
+/* lanes */
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.lane{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:rgba(0,0,0,.18)}
+.lane b{font:600 13px var(--mono);display:flex;align-items:center;gap:6px}.lane span{font-size:12px;color:var(--ink2)}
+.lane.busy{border-color:var(--blue);box-shadow:0 0 18px -6px var(--blue)}
+/* tools */
+.tbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+input,select,button{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+button{cursor:pointer}
+.fam{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 8px;display:flex;gap:8px;align-items:center}.fam::after{content:"";flex:1;height:1px;background:var(--line)}
+.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.tool{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:rgba(0,0,0,.18);display:flex;flex-direction:column;gap:6px;min-width:0;transition:transform .15s,border-color .15s}
+.tool:hover{transform:translateY(-2px);border-color:var(--axis)}
+.tool.live{border-color:var(--glow);box-shadow:0 0 22px -8px var(--glow)}
+.tool.never{opacity:.62}
+.tool .top{display:flex;align-items:baseline;gap:8px}.tool .nm{font:600 13.5px var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool .n{margin-left:auto;font:600 18px var(--mono);font-variant-numeric:tabular-nums}
+.tool .what{font-size:12px;color:var(--ink2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:34px}
+.tool .foot{display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);align-items:center}
+.ubar{height:4px;border-radius:2px;background:var(--line)}.ubar i{display:block;height:100%;border-radius:2px;background:var(--blue)}
+/* tables, feed */
+table{border-collapse:collapse;width:100%;font-size:12.5px}th{text-align:left;color:var(--muted);font-weight:500;padding:4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+td.cmd{font-family:var(--mono);font-size:11.5px;color:var(--ink2);max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scroll{max-height:380px;overflow:auto}
+.ev{display:grid;grid-template-columns:62px 92px 1fr;gap:8px;font:12px/1.6 var(--mono);padding:1px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.ev .t{color:var(--muted)}.ev .x{color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+a{color:#8fc0f5;text-decoration:none}a:hover{text-decoration:underline}
+svg{display:block;width:100%;height:auto;overflow:visible} svg text{fill:var(--muted);font:11px system-ui,sans-serif}
+svg .lab{fill:var(--ink2)} svg .mark{transition:opacity .15s} svg .mark:hover{opacity:.75}
+#tip{position:fixed;z-index:9;pointer-events:none;background:#0d0e12;border:1px solid var(--axis);border-radius:8px;padding:6px 9px;font-size:12px;color:var(--ink);max-width:340px;white-space:pre-line;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none}
+.err{color:#f09a9a}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="logo">P&#8239;=&#8239;NP&#8239;?</span><h1>Flotte pequalnp · tableau de bord local</h1><span class="sp"></span>
+    <span class="pill" id="p-coll"></span><span class="pill" id="p-desk"></span><span class="pill mono" id="p-clock"></span>
+    <span class="pill"><span class="dot" id="live"></span><span id="p-live">connexion…</span></span>
+  </header>
+  <div class="grid kpis" id="kpis"></div>
+  <div class="grid g2">
+    <section class="card"><h2>Recherches en cours <span class="sp"></span><small class="muted">dossiers work/&lt;id&gt;/ · cliquer une méthode pour lire son STATUS</small></h2><div id="research"></div></section>
+    <section class="card"><h2>Machine</h2><div id="machine"></div></section>
+  </div>
+  <div class="grid g2">
+    <section class="card"><h2>Lanes</h2><div class="lanes" id="lanes"></div><div id="pause" class="small muted mono" style="margin-top:10px"></div></section>
+    <section class="card"><h2>Guichet · étapes non offertes <span class="sp"></span><small class="muted" id="desk-at"></small></h2><div id="desk"></div></section>
+  </div>
+  <div class="grid g11">
+    <section class="card"><h2>Résultats par catégorie <span class="sp"></span><button id="tgl" class="small">Tableau</button></h2><div class="legend" id="legend"></div><div id="bycat"></div></section>
+    <section class="card"><h2>Baux par heure (UTC)</h2><div id="byhour"></div></section>
+  </div>
+  <section class="card" style="margin-bottom:14px"><h2>Outils et usage <span class="sp"></span><small class="muted" id="tools-sum"></small></h2>
+    <div class="tbar"><input id="q" type="search" placeholder="Filtrer (nom, description)…" aria-label="Filtrer les outils">
+      <select id="sort" aria-label="Tri"><option value="fam">Par famille</option><option value="n">Les plus utilisés</option><option value="last">Utilisés récemment</option><option value="never">Jamais utilisés</option></select></div>
+    <div id="tools"></div></section>
+  <section class="card" style="margin-bottom:14px"><h2>Processus de la flotte <span class="sp"></span><small class="muted">lancés depuis le dossier de la flotte, hors sessions Claude</small></h2><div class="scroll" id="procs"></div></section>
+  <div class="grid g11">
+    <section class="card"><h2>Pull requests</h2><div class="scroll" id="prs"></div></section>
+    <section class="card"><h2>Journal du collecteur</h2><div class="scroll" id="events"></div></section>
+  </div>
+</div>
+<div id="tip" role="tooltip"></div>
+<script>
+const $=id=>document.getElementById(id);
+const e=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));  // every string from disk or the desk goes through this
+const OUT=[["submitted","PR ouverte","--blue"],["statement_seems_false","Énoncé faux","--orange"],["merged","Mergée","--aqua"],["missing_lemma","Lemme manquant","--yellow"],["autre","Autre (délai, retrait)","--magenta"],["released","Rendue sans verdict","--grey"]];
+const okey=o=>OUT.some(x=>x[0]===o)?o:"autre";
+const LANES=["normal","normal2","normal3","normal4","normal5","normal6","hard"];
+const openSet=new Set(); let S=null, table=false, fails=0;
+const ago=s=>{s=Math.max(0,Math.round(s));return s<90?s+" s":s<5400?Math.round(s/60)+" min":s<172800?(s/3600).toFixed(1).replace(".",",")+" h":Math.round(s/86400)+" j"};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+// sequential ramp, one hue: darker = idle, brighter = busy (dark surface)
+const heat=p=>{const r=["#16263c","#184f95","#256abf","#3987e5","#6da7ec","#9ec5f4"];return r[Math.min(5,Math.floor(p/17))]};
+
+function kpis(){
+  const R=S.results, n=R.length, m=R.filter(r=>r.outcome==="merged").length, sub=R.filter(r=>r.outcome==="submitted").length;
+  const v=Object.values(S.verdicts).reduce((a,b)=>a+b,0), act=S.procs.filter(p=>p.cpu>=50).length;
+  const runs=S.research.filter(r=>S.procs.some(p=>p.cwd.startsWith("work/"+r.step))).length;
+  const seg=Array.from({length:S.budget},(_,i)=>`<i class="${i<act?(act>S.budget?"over":"on"):""}"></i>`).join("");
+  const d=S.desk||{};
+  const T=[["Étapes tentées",n,`${new Set(R.map(r=>r.step)).size} étapes distinctes`,"--axis"],
+    ["Mergées",m,`${(100*m/Math.max(n,1)).toFixed(1).replace(".",",")} % des baux`,"--aqua"],
+    ["PR en attente",sub,"soumises, pas encore mergées","--blue"],
+    ["Verdicts enregistrés",v,Object.entries(S.verdicts).map(([k,x])=>`${x} ${e(k.replaceAll("_"," "))}`).join(" · "),"--yellow"],
+    ["Recherches actives",runs,`${S.research.length} dossier(s) dans work/`,"--magenta"],
+    ["Solveurs actifs",`${act}<span class="muted" style="font-size:18px"> / ${S.budget}</span>`,`<div class="seg">${seg}</div>`,act>S.budget?"--crit":"--blue"],
+    ["Offrables au guichet",d.offerable_now_ordinary??"–",d.error?`<span class="err">guichet injoignable</span>`:S.desk?`${d.offerable_now??"–"} en comptant les difficiles`:"lecture du guichet coupée (DESK=0)","--orange"]];
+  $("kpis").innerHTML=T.map(([l,val,s,c])=>`<div class="card kpi" style="--c:var(${c})"><div class="l">${l}</div><div class="v">${val}</div><div class="s">${s}</div></div>`).join("");
+}
+
+function research(){
+  if(!S.research.length){$("research").innerHTML='<p class="muted">Aucun dossier dans work/.</p>';return}
+  $("research").innerHTML=S.research.map(r=>{
+    const pr=S.procs.filter(p=>p.cwd===("work/"+r.step)||p.cwd.startsWith("work/"+r.step+"/"));
+    const flags=Object.entries(r.flags).map(([f,t])=>`<span class="badge ${f[0]==="F"?"good":"crit"}" data-tip="${e(t)}">${f[0]==="F"?"✓ TROUVÉ":"✗ RÉFUTÉ"}</span>`).join(" ");
+    const ms=r.methods.map(m=>{
+      const key=r.step+"/"+m.name, mp=pr.filter(p=>m.name==="(racine)"?p.cwd==="work/"+r.step:p.cwd.startsWith("work/"+r.step+"/"+m.name));
+      const cpu=mp.filter(p=>p.cpu>=50).length;
+      const ex=m.status.split("\n").filter(l=>l.trim()&&!l.startsWith("#")).slice(-2).join(" ⏎ ");
+      return `<details class="method" data-k="${e(key)}" ${openSet.has(key)?"open":""}><summary><span class="nm">${e(m.name)}</span>
+        ${mp.length?`<span class="run">${cpu} solveur(s) actif(s), ${mp.length} processus</span>`:'<span class="muted small">à l\'arrêt</span>'}
+        <span class="sp"></span><span class="muted small" data-tip="STATUS.md modifié il y a ${ago(S.now-m.updated)}\nDernier fichier écrit il y a ${ago(S.now-m.touched)}\n${m.files} fichiers">STATUS il y a ${ago(S.now-m.updated)}</span>
+        <span class="ex">${e(ex)}</span></summary><pre>${e(m.status)}</pre></details>`}).join("");
+    return `<div class="step"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="id">${e(r.step)}</span>${flags}
+      ${pr.length?`<span class="run">${pr.filter(p=>p.cpu>=50).length} solveur(s)</span>`:""}<span class="sp"></span>
+      <a class="small" href="https://pequalnp.com/desk" target="_blank" rel="noopener">guichet ↗</a></div>
+      <div class="ttl">${e(r.title||"(pas de bail local : titre inconnu)")}</div>${r.statement?`<div class="mono small muted" style="margin-bottom:6px;word-break:break-word">${e(r.statement)}</div>`:""}${ms||'<div class="muted small">Aucun STATUS.md.</div>'}</div>`}).join("");
+}
+
+function spark(vals,max,color,label){
+  const W=300,H=44,n=vals.length; if(n<2)return"";
+  const pts=vals.map((v,i)=>`${(i*W/(n-1)).toFixed(1)},${(H-2-(H-6)*Math.min(v,max)/max).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}"><polyline points="0,${H} ${pts} ${W},${H}" fill="${color}" opacity=".13"/><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/><line x1="0" x2="${W}" y1="${H}" y2="${H}" stroke="${css("--axis")}"/></svg>`;
+}
+function machine(){
+  const m=S.mem||{}, n=S.cores.length, res=i=>i>=n-2;
+  const cores=S.cores.map((p,i)=>{const on=S.procs.filter(q=>q.core===i&&q.cpu>=50).map(q=>`${q.exe} (pid ${q.pid}, ${q.cpu} %)`);
+    return `<div class="core ${res(i)?"res":""}" style="background:${heat(p)}" data-tip="Cœur ${i} : ${p} %${res(i)?"\nRéservé : jamais attribué aux solveurs":""}${on.length?"\n"+e(on.join("\n")):""}">${i}</div>`}).join("");
+  const h=S.hist, mins=h.length?Math.round((h[h.length-1].t-h[0].t)/60):0;
+  $("machine").innerHTML=`<div class="cores">${cores}</div>
+    <div class="small muted" style="margin-top:6px">Clair = chargé. Pointillés : cœurs ${n-2}-${n-1} réservés.</div>
+    <div class="row"><span>Mémoire</span><span class="mono">${(m.used_gb||0).toFixed(1).replace(".",",")} / ${(m.total_gb||0).toFixed(0)} Go</span></div>
+    <div class="bar"><i style="width:${100*(m.used_gb||0)/(m.total_gb||1)}%;background:${(m.used_gb||0)/(m.total_gb||1)>.85?css("--crit"):css("--blue")}"></i></div>
+    <div class="row"><span>Charge moyenne (1, 5, 15 min)</span><span class="mono">${S.load.map(e).join(" · ")}</span></div>
+    <div class="row"><span>Processeur, moyenne des cœurs · ${mins} dernières min</span><span class="mono">${h.length?h[h.length-1].cpu:0} %</span></div>${spark(h.map(x=>x.cpu),100,css("--blue"),"Charge processeur")}
+    <div class="row"><span>Solveurs actifs</span><span class="mono">${h.length?h[h.length-1].solvers:0} / ${S.budget}</span></div>${spark(h.map(x=>x.solvers),Math.max(S.budget,...h.map(x=>x.solvers)),css("--magenta"),"Solveurs actifs")}`;
+}
+
+function lanes(){
+  const by=Object.fromEntries(S.lanes.map(l=>[l.lane,l]));
+  $("lanes").innerHTML=[...new Set([...LANES,...S.lanes.map(l=>l.lane)])].map(n=>{const l=by[n];
+    const [cls,dot,txt]=!l?["","on","libre"]:l.step?["busy","wait",`${e(l.step)} · ${ago(S.now-l.since)}`]:["","off","fermée, attend Master"];
+    return `<div class="lane ${cls}" ${l?`data-tip="Fichier busy-${e(n)} modifié il y a ${ago(S.now-l.since)}"`:""}><b><span class="dot ${dot==="on"?"":dot}" ${dot==="on"?'style="background:var(--good)"':""}></span>${e(n)}</b><span>${txt}</span></div>`}).join("");
+  $("pause").innerHTML=S.pause.length?"pause-watch : "+e(S.pause[S.pause.length-1]):"";
+  $("p-coll").innerHTML=`<span class="dot ${S.collector?"on":"off"}"></span>collecteur ${S.collector?"en marche":"arrêté"}`;
+}
+
+function hbars(el,rows,color,unit){ // rows: [label, value, tip]
+  const max=Math.max(1,...rows.map(r=>r[1])),W=520,rh=22,L=170;
+  $(el).innerHTML=`<svg viewBox="0 0 ${W} ${rows.length*rh+4}" role="img">`+rows.map(([l,v,t],i)=>{const w=Math.max(2,(W-L-50)*v/max);
+    return `<text x="${L-8}" y="${i*rh+15}" text-anchor="end" class="lab">${e(l)}</text><rect class="mark" x="${L}" y="${i*rh+4}" width="${w}" height="14" rx="4" fill="${color}" data-tip="${e(t||l+" : "+v+" "+unit)}"/><text x="${L+w+6}" y="${i*rh+15}">${v}</text>`}).join("")+`</svg>`;
+}
+const NO={one_holder_first:"un premier preneur d'abord",resting_after_expiry:"repos après expiration",pulled:"retirées",at_cap:"au plafond",pr_open:"PR ouverte",resting_after_submit:"repos après soumission",cut_of_cut:"coupe de coupe",twin_waiting:"jumelle en attente",reserved:"réservées",settled_above:"réglées plus haut"};
+function desk(){
+  const d=S.desk; $("p-desk").textContent=d&&!d.error?`guichet : ${d.offerable_now_ordinary??"?"} offrables`:"guichet : –";
+  if(!d||d.error){$("desk").innerHTML=`<p class="muted">${d?'<span class="err">Guichet injoignable ('+e(d.error)+").</span>":"Lecture coupée (DESK=0)."}</p>`;$("desk-at").textContent="";return}
+  $("desk-at").textContent="lu il y a "+ago(S.now-d.at)+" · une lecture par minute";
+  hbars("desk",Object.entries(d.not_offerable||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[NO[k]||k.replaceAll("_"," "),v,`${k} : ${v} étapes`]),css("--grey"),"étapes");
+}
+
+function outcomes(){
+  $("legend").innerHTML=OUT.map(([k,l,c])=>`<span><i class="sw" style="background:var(${c})"></i>${l}</span>`).join("");
+  const cat={}; for(const r of S.results){(cat[r.category]??={})[okey(r.outcome)]=(cat[r.category][okey(r.outcome)]||0)+1}
+  const rows=Object.entries(cat).map(([c,o])=>[c,o,Object.values(o).reduce((a,b)=>a+b,0)]).sort((a,b)=>b[2]-a[2]);
+  if(table){$("bycat").innerHTML=`<table><tr><th>Catégorie</th>${OUT.map(o=>`<th class="num">${o[1]}</th>`).join("")}<th class="num">Total</th></tr>`+rows.map(([c,o,t])=>`<tr><td class="mono">${e(c)}</td>${OUT.map(x=>`<td class="num">${o[x[0]]||""}</td>`).join("")}<td class="num">${t}</td></tr>`).join("")+"</table>"}
+  else{const max=Math.max(1,...rows.map(r=>r[2])),W=560,rh=24,L=96,PW=W-L-92;
+    $("bycat").innerHTML=`<svg viewBox="0 0 ${W} ${rows.length*rh+4}" role="img" aria-label="Résultats par catégorie">`+rows.map(([c,o,t],i)=>{let x=L,s="";
+      for(const [k,l,col] of OUT){const v=o[k]||0;if(!v)continue;const w=Math.max(3,PW*v/max);
+        s+=`<rect class="mark" x="${x}" y="${i*rh+4}" width="${Math.max(1,w-2)}" height="15" rx="3" fill="${css(col)}" data-tip="${e(c)} · ${l} : ${v} sur ${t}"/>`;x+=w}
+      return `<text x="${L-8}" y="${i*rh+16}" text-anchor="end" class="lab mono">${e(c)}</text>${s}<text x="${x+5}" y="${i*rh+16}">${t}${o.merged?` · ${o.merged} mergée${o.merged>1?"s":""}`:""}</text>`}).join("")+"</svg>"}
+  // per hour
+  const H={}; for(const r of S.results){const t=/^\d\d:/.test(r.leased)?r.leased:/^\d\d:/.test(r.ended)?r.ended:null;if(!t||!r.date)continue;const k=r.date+" "+t.slice(0,2);(H[k]??={})[okey(r.outcome)]=(H[k][okey(r.outcome)]||0)+1}
+  const ks=Object.keys(H).sort(); if(!ks.length){$("byhour").innerHTML='<p class="muted">Pas encore de baux horodatés.</p>';return}
+  const tot=k=>Object.values(H[k]).reduce((a,b)=>a+b,0),mx=Math.max(...ks.map(tot)),W=560,Hh=190,B=22,L=30,bw=Math.min(26,(W-L)/ks.length);
+  let g="";for(let i=0;i<=2;i++){const v=Math.round(mx*i/2),y=Hh-B-(Hh-B-8)*i/2;g+=`<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="${css(i?"--line":"--axis")}"/><text x="${L-6}" y="${y+4}" text-anchor="end">${v}</text>`}
+  $("byhour").innerHTML=`<svg viewBox="0 0 ${W} ${Hh+14}" role="img" aria-label="Baux par heure">${g}`+ks.map((k,i)=>{let y=Hh-B,s="";const x=L+i*bw;
+    const tip=`${k} h UTC : ${tot(k)} baux\n`+OUT.filter(o=>H[k][o[0]]).map(o=>`${o[1]} : ${H[k][o[0]]}`).join("\n");
+    for(const [o,,col] of OUT){const v=H[k][o]||0;if(!v)continue;const h=Math.max(3,(Hh-B-8)*v/mx);y-=h;s+=`<rect x="${x+1}" y="${y+1}" width="${Math.max(2,bw-3)}" height="${Math.max(1,h-2)}" rx="2" fill="${css(col)}"/>`}
+    const day=i===0||ks[i-1].slice(0,10)!==k.slice(0,10);
+    return `<g class="mark" data-tip="${e(tip)}">${s}<rect x="${x}" y="8" width="${bw}" height="${Hh-B-8}" fill="transparent"/></g><text x="${x+bw/2}" y="${Hh-7}" text-anchor="middle">${k.slice(11)}</text>${day?`<text x="${x}" y="${Hh+10}" class="lab">${e(k.slice(5,10))}</text>`:""}`}).join("")+"</svg>";
+}
+
+function tools(){
+  const q=$("q").value.toLowerCase(), sort=$("sort").value, max=Math.max(1,...S.tools.map(t=>t.n));
+  let T=S.tools.filter(t=>!q||(t.name+" "+t.what+" "+t.family).toLowerCase().includes(q));
+  if(sort==="never")T=T.filter(t=>!t.n);
+  const used=S.tools.filter(t=>t.n).length;
+  $("tools-sum").textContent=S.usage_ready?`${S.tools.length} outils · ${used} utilisés · ${S.tools.length-used} jamais · comptés dans les commandes des sessions Claude`:"lecture des transcripts en cours…";
+  const card=t=>{const days=Object.entries(t.days).sort(),dm=Math.max(1,...days.map(d=>d[1]));
+    const sp=days.map(([d,n])=>`<i style="display:inline-block;width:6px;height:${Math.max(2,Math.round(14*n/dm))}px;background:var(--blue);border-radius:1px;margin-right:2px" data-tip="${e(d)} : ${n} appel(s)"></i>`).join("");
+    const by=t.by.map(([s,n])=>`${s} : ${n}`).join("\n");
+    return `<div class="tool ${t.running?"live":""} ${t.n?"":"never"}"><div class="top"><span class="nm" title="${e(t.name)}">${e(t.name)}</span><span class="badge">${e({c:"C",py:"Python",sh:"shell",ext:"externe"}[t.kind]||t.kind)}</span><span class="n" data-tip="${t.n} appel(s) dans les commandes des sessions${by?"\n"+e(by):""}">${t.n}</span></div>
+      <div class="ubar"><i style="width:${100*t.n/max}%"></i></div><div class="what" data-tip="${e(t.what)}">${e(t.what||"—")}</div>
+      <div class="foot">${t.running?`<span class="run">${t.running} en cours</span>`:""}${t.built===false?'<span class="badge warn" data-tip="Binaire absent : make -C fleet-tools">⚠ non compilé</span>':""}
+        <span>${t.last?"dernier appel il y a "+ago(S.now-Date.parse(t.last)/1000):"jamais appelé"}</span><span class="sp" style="flex:1"></span><span style="display:flex;align-items:flex-end;height:14px">${sp}</span></div></div>`};
+  if(sort==="fam"){const F={};for(const t of T)(F[t.family]??=[]).push(t);
+    $("tools").innerHTML=Object.entries(F).sort((a,b)=>b[1].reduce((s,t)=>s+t.n,0)-a[1].reduce((s,t)=>s+t.n,0)).map(([f,ts])=>`<div class="fam">${e(f)} <span class="mono">${ts.reduce((s,t)=>s+t.n,0)} appels</span></div><div class="tools">${ts.sort((a,b)=>b.n-a.n).map(card).join("")}</div>`).join("")||'<p class="muted">Aucun outil ne correspond.</p>'}
+  else{T.sort(sort==="last"?(a,b)=>(b.last||"").localeCompare(a.last||""):(a,b)=>b.n-a.n||a.name.localeCompare(b.name));
+    $("tools").innerHTML=`<div class="tools">${T.map(card).join("")}</div>`}
+}
+
+function tablesAndFeed(){
+  $("procs").innerHTML=S.procs.length?`<table><tr><th class="num">PID</th><th>Programme</th><th class="num">CPU</th><th class="num">Mémoire</th><th>Cœurs</th><th class="num">Depuis</th><th>Dossier</th><th>Commande</th></tr>`+
+    S.procs.map(p=>{const all=p.cores===`0-${S.cores.length-1}`;return `<tr><td class="num">${p.pid}</td><td class="mono">${e(p.exe)}</td><td class="num">${p.cpu} %</td><td class="num">${p.rss_mb>=1024?(p.rss_mb/1024).toFixed(1).replace(".",",")+" Go":p.rss_mb+" Mo"}</td>
+      <td class="mono">${all?'<span class="muted" data-tip="Aucun taskset : le processus peut tourner sur tous les cœurs, réservés compris">non épinglé</span>':e(p.cores)}</td><td class="num">${ago(p.age_s)}</td><td class="mono">${e(p.cwd)}</td><td class="cmd" data-tip="${e(p.cmd)}">${e(p.cmd)}</td></tr>`}).join("")+"</table>":'<p class="muted">Aucun processus de la flotte ne tourne.</p>';
+  const P=S.results.filter(r=>r.pr).reverse(), lab=Object.fromEntries(OUT.map(o=>[o[0],o]));
+  $("prs").innerHTML=P.length?`<table><tr><th>PR</th><th>Étape</th><th>État</th><th>Date</th><th>Note</th></tr>`+P.map(r=>{const o=lab[okey(r.outcome)];
+    return `<tr><td><a href="https://github.com/open-goat/pequalnp-proofs/pull/${r.pr}" target="_blank" rel="noopener">#${r.pr}</a></td><td class="mono">${e(r.step)}</td><td style="white-space:nowrap"><i class="sw" style="background:var(${o[2]})"></i>${o[1]}</td><td class="mono">${e(r.date.slice(5))}</td><td class="muted">${e(r.reason.replace(/#\d+\s*/,""))}</td></tr>`}).join("")+"</table>":'<p class="muted">Aucune PR.</p>';
+  const EC={LEASED:"--blue",RELEASED:"--grey",SKIPPED:"--grey",START:"--aqua",STOP:"--crit","BEAT-END":"--yellow","BEAT-ERROR":"--crit",CAPPED:"--orange",UNBLOCKED:"--aqua",RECONCILE:"--magenta"};
+  $("events").innerHTML=S.events.slice().reverse().map(l=>{const m=l.match(/^(\S+)\s+(\S+)\s*(.*)$/)||[,"","",l];
+    return `<div class="ev"><span class="t">${e(m[1])}</span><span><i class="sw" style="background:var(${EC[m[2]]||"--axis"})"></i>${e(m[2])}</span><span class="x" data-tip="${e(m[3])}">${e(m[3].replace(/\S*\/leases\//,""))}</span></div>`}).join("")||'<p class="muted">Journal vide.</p>';
+}
+
+function render(){for(const f of [kpis,research,machine,lanes,desk,outcomes,tools,tablesAndFeed]){try{f()}catch(x){console.error(f.name,x)}}}
+async function tick(){
+  try{const r=await fetch("/api/state",{cache:"no-store"});if(!r.ok)throw new Error(r.status);S=await r.json();fails=0;
+    if(!document.querySelector("details.method[open] pre:hover")&&!getSelection().toString())render();
+    $("live").className="dot on";$("p-live").textContent="en direct · 5 s"}
+  catch(x){fails++;$("live").className="dot off";$("p-live").textContent="serveur injoignable ("+fails+")"}
+}
+setInterval(()=>{$("p-clock").textContent=new Date().toISOString().slice(11,19)+" UTC"},1000);
+document.addEventListener("toggle",ev=>{const k=ev.target.dataset?.k;if(k)ev.target.open?openSet.add(k):openSet.delete(k)},true);
+$("q").oninput=$("sort").onchange=()=>S&&tools();
+$("tgl").onclick=()=>{table=!table;$("tgl").textContent=table?"Graphique":"Tableau";S&&outcomes()};
+const tip=$("tip");
+document.addEventListener("mousemove",ev=>{const t=ev.target.closest?.("[data-tip]");if(!t){tip.style.display="none";return}
+  tip.textContent=t.dataset.tip;tip.style.display="block";const w=tip.offsetWidth,h=tip.offsetHeight;
+  tip.style.left=Math.min(innerWidth-w-8,ev.clientX+14)+"px";tip.style.top=(ev.clientY+h+24>innerHeight?ev.clientY-h-10:ev.clientY+16)+"px"});
+tick();setInterval(tick,5000);
+</script>
+</body>
+</html>

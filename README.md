@@ -34,3 +34,9 @@ The harness expects to sit in `$PENP/harness/`, next to the clones it drives:
     cd .. && ln -s harness/master master && ln -s harness/fleet-tools fleet-tools && mkdir -p .claude && ln -s ../harness/skills .claude/skills
 
 Then start the collector from the Master session: `bash master/grab.sh 15`.
+
+## Dashboard
+
+    python3 dashboard/serve.py        # http://127.0.0.1:8377/
+
+Live local view of the research, lanes, machine load, outcomes and tool use. See `CLAUDE.md`.

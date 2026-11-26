@@ -34,6 +34,7 @@ Lanes reply to `Master`; tool requests go to `Harness`.
         master/                grab.sh, twin_merged.py, join-<date>.txt (+ run state, gitignored)
         fleet-tools/           search tools, generators, lane helpers, playbook README.md, Makefile
         skills/                pequalnp-master, pequalnp-lane, pequalnp-hard, harness, orchestrator
+        dashboard/             local live dashboard (serve.py + index.html)
       CLAUDE.md -> harness/CLAUDE.md
       master -> harness/master             the skills and lanes use these paths
       fleet-tools -> harness/fleet-tools
@@ -162,6 +163,15 @@ search), `restrict.py` (signed size of each restriction of a 6-input table, via 
 | `take_onenot8.sh <wt> <id> <json>` | 8-vertex one-NOT negation: install, beat, twin, `liveg`, `livegpx` |
 | `category.py <lease.json>` / `--title` | coarse category: upper, lower, reshape, neg, proof, other (prefix `cut/`); feeds `SKIP_CATS` and results.tsv |
 | `master/twin_merged.py <lease.json>` | exit 0 when a negation's twin (id − 1) is merged upstream with exactly its body |
+
+## Dashboard
+
+`python3 harness/dashboard/serve.py [port]` then http://127.0.0.1:8377/ : live page (refresh 5 s) with the research in
+`work/` (STATUS files, running solvers), lanes, desk stats, outcomes per category and per hour, cores / memory /
+active solvers against the budget of 14, fleet processes, PRs, the collector log, and every tool with how often the
+sessions called it (counted in the Bash commands of the Claude transcripts of this folder; commands are never served).
+Read-only, standard library only, listens on 127.0.0.1. It reads `desk/stats` at most once a minute (`DESK=0` to stop).
+A new file in `fleet-tools/` appears by itself; a tool outside it is one line in `EXTRA` of `serve.py`.
 
 ## Lean tooling
 
