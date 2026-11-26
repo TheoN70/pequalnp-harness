@@ -23,7 +23,8 @@ This session runs the research effort. It decides **what** to attack and **how**
 
 ## Choosing what to attack
 
-- Source of truth on outcomes: `results.tsv` (column `category`), `master/verdicts.txt`, `master/leases/events.log`, and the desk (`GET /desk/stats`, `GET /desk/step?gap=<id>`). Merge rate per category tells where effort pays (on 2026-11-26: lower 5/28, reshape 3/19, upper 0/37, neg 0/169).
+- Source of truth on outcomes: `results.tsv` (column `category`), `master/verdicts.txt`, `master/leases/events.log`, the public desk page https://pequalnp.com/desk (read its text), and the lease JSON once a step is leased. Use only the desk endpoints documented in join.txt (`next`, `beat`, `release`, all Master's); never probe undocumented pequalnp.com URLs (Théo's standing rule). `desk/stats` stays Master's, for the collector.
+- Merge rate per category tells where effort pays: recompute it from `results.tsv` (outcome `merged` over leases, per `category`) before choosing; it drifts. On 2026-11-26 it was lower 5/28, reshape 3/19, upper 0/37, neg 0/169.
 - Prefer, in order: (1) a sibling of a family we already merged (a generator exists: see the generator table in `CLAUDE.md`); (2) a step whose proof is one tool away (ask Harness for the tool, then the fleet clears the whole family); (3) a hard step with a credible method (`/pequalnp-hard` decision table); last, open families that are always `missing_lemma`.
 - A step someone else already has an open PR on (or whose positive twin has one, for a negation) cannot become our PR: skip it.
 - Check `master/verdicts.txt` and the merged files upstream before spending agents on a step.
