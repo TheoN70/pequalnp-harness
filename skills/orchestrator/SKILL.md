@@ -15,7 +15,8 @@ All resources go to ONE hard step. Where this section and the rest disagree, thi
 - **One target**: propose a step with its reasons (kind, why it can fall, what is known); the owner picks or confirms it. Switching target throws away hours of compute: only the owner does it, or the current one ends (found, refuted, dropped by the owner).
 - **Exactly one Research session** on it: `start_session` with `/pequalnp-hard <id>`, cores 0-13, memory = `free -g` "disponible" − 4 GB, no time budget, reports at each milestone and every 2 h. Never a second Research session in parallel.
 - **Keep it alive**: at every report, owner question or idle notice, check it is alive (`list_sessions`). If it died, start a new one: `/pequalnp-hard <id>, reprise : lis work/<id>/*/STATUS.md, surveille ce qui tourne encore, ne relance que ce qui est mort sans résultat`.
-- **Lanes stay closed** and Master leases nothing until Research has a verified proof. Ask the owner before reopening anything.
+- **Lease from the start** (the owner, 2026-11-26): when you start the Research session, ask Master to lease the target (`grab.sh --unit <id> research`); the collector keeps it all along and Master takes it again if it runs out. On `BEAT-WITHDRAWN` the unit is settled or stood down: Research stops, pick the next target with the owner.
+- **Lanes stay closed**. Ask the owner before reopening anything.
 - Between two targets, use the time to prepare the next one: ask Harness for the tool it needs.
 
 ## Who does what

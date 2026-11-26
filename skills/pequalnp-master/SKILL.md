@@ -18,25 +18,32 @@ loop below (lanes, BAIL, pause-watch, memory grants), which stays written for wh
 
 - **Lanes closed**: every `master/leases/busy-<lane>` file exists and is EMPTY; no BAIL; no pause-watch loop. Never
   reopen a lane (removing a busy file) without the owner.
-- **Collector = beats only**: with every busy file present `next_free` finds no lane, so `grab.sh` never calls
-  `desk/next`; it only renews the leases named in the busy files. Keep it running (`bash master/grab.sh 15`) while we
-  hold the target, stopped otherwise.
+- **Collector = beats only**: with every lane's busy file present `next_free` finds no lane, so `grab.sh` never asks
+  `desk/next` on its own; it only renews the leases named in the busy files (`busy-research` included). Keep it running
+  (`bash master/grab.sh 15`) for as long as we hold the target.
 - **Memory**: no grants; the Research session owns cores 0-13 and the memory budget (`$PENP/CLAUDE.md`, "Operating mode").
-- **Leasing the target**, only on `Research → Master : merci de louer <id> (preuve candidate vérifiée, <path>)`:
+- **Lease from the start (the owner, 2026-11-26 ~16:00)**: since join.txt counts points, a unit we did not take earns
+  only the 10-point floor and can be beaten. So the target is leased when Research STARTS on it, and kept all along:
   1. `curl -sG $DESK/step --data-urlencode gap=<id>`: state `open`, no other holder, no open PR (and
      `gh pr list -R open-goat/pequalnp-proofs --search "<id> in:title"` empty). Otherwise tell Research and Orchestrator.
-  2. `bash master/grab.sh --unit <id> --proof hard` (we hold a checked proof, so `have=proof` is allowed): it writes
-     `master/leases/<id>.json` and `busy-hard`, logs LEASED, exit 4 + the desk's reason if not leased. Start the
-     collector if it is not running (it beats the lease every 300 s); log the lease in `results.tsv` (lane `hard`,
-     session `Research`). A `BEAT-WITHDRAWN` in events.log means the unit was settled or stood down: tell Research to
-     stop, never submit it.
-  3. Install it in the idle Hard worktree: `python3 -I fleet-tools/take_lease.py master/leases/<id>.json $PENP/pequalnp-proofs`,
-     then answer Research with the lease JSON path and the worktree; its Lean writer puts the proof at `gap.file` there.
-  4. When Research reports `tools/pnp.sh check <id>` ACCEPTED: re-check `gh pr list` and submit from that worktree
-     (`export PNP_MODEL=claude-sonnet-5-5; tools/pnp.sh submit <id>`), record the PR in `results.tsv`, empty
-     `busy-hard`, tell the owner, Orchestrator and Research.
-- **Refuted target**: Research writes the verdict line in `master/verdicts.txt`; if we hold the lease, release it
-  with `fleet-tools/release.sh <id> statement_seems_false` and empty `busy-hard`.
+  2. `bash master/grab.sh --unit <id> research` (exactly that unit or nothing): it writes `master/leases/<id>.json` and
+     `busy-research`, logs LEASED; exit 4 + the desk's reason if not leased (then retry after the `retry_after_s` it
+     names, or once Research has a verified proof with `--proof`). Start the collector if it is not running; log the
+     lease in `results.tsv` (lane `research`, session `Research`). No lease while no Research session works on the target.
+  3. **Lease ran out** (`BEAT-END` for `busy-research` in events.log, or the busy file emptied): take it again at once
+     with step 2, adding `--proof` once Research has a verified proof (passes even if another agent holds it, except
+     one that took it under 30 min ago).
+  4. **`BEAT-WITHDRAWN`** (410 with `withdrawn: true`): the unit was settled or stood down. Tell Research to stop
+     everything and Orchestrator; never submit it; empty `busy-research`.
+- **Finishing**, on `Research → Master : <id> preuve vérifiée, <path>`:
+  1. Install the lease in the idle Hard worktree: `python3 -I fleet-tools/take_lease.py master/leases/<id>.json $PENP/pequalnp-proofs`,
+     then answer Research with the worktree; its Lean writer puts the proof at `gap.file` there.
+  2. When Research reports `tools/pnp.sh check <id>` ACCEPTED: re-check `gh pr list` and submit from that worktree
+     (`export PNP_MODEL=claude-sonnet-5-5; tools/pnp.sh submit <id>`, never `--unleased`), record the PR in
+     `results.tsv`, empty `busy-research`, tell the owner, Orchestrator and Research.
+- **Refuted or dropped target**: Research writes the verdict line in `master/verdicts.txt`; release the lease with
+  `fleet-tools/release.sh <id> <reason>` (from `$PENP/pequalnp-proofs` once the lease is installed there, else
+  `curl -X POST "$DESK/release?lease=<lease id>&reason=<reason>"`) and empty `busy-research`.
 
 Everything durable lives in `$PENP/` (never in `/tmp`: the machine rebooted on 2026-11-25 19:26 and `/tmp` was wiped):
 

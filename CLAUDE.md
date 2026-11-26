@@ -22,7 +22,7 @@ until it is found, refuted or the owner drops it. Only the owner switches mode o
 |---|---|
 | Orchestrator | holds the one target (the owner picks or confirms it), keeps exactly one Research session alive on it, restarts it if it dies |
 | Research | the only session that computes: cores 0-13, memory = `free -g` "disponible" − 4 GB, no time budget, reports at each milestone and every 2 h |
-| Master | collector in beats-only mode (every `busy-*` file present: it never leases); leases the target only once Research has a verified proof, then the check and the PR |
+| Master | leases the target when Research starts (`grab.sh --unit <id> research`, so a proof earns the unit's price), keeps it beaten by the collector in beats-only mode (every lane's `busy-*` file present: it leases nothing else), takes it again if it runs out, stops Research on `BEAT-WITHDRAWN`, then the check and the PR |
 | Lanes | closed (empty `busy-*` files), no BAIL; their sessions stay idle |
 | Harness | tools the Research session asks for |
 

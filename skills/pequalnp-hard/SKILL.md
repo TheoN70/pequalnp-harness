@@ -21,20 +21,21 @@ This session is the only one computing (lanes closed, one Research session). Whe
 - **No time budget**: work until found, refuted, or the owner stops. Prefer runs that keep progress when they die: split one huge SAT call into cubes or cases each written to its own result file, so a crash or a reboot loses one piece, not hours.
 - **Survive a restart**: every long run gets a STATUS line with the exact command, cores, start time, pid and output file. A new Research session started by Orchestrator on the same step reads them, watches what still runs and relaunches only what died with no result.
 - **Reports**: to Orchestrator at each milestone (a size settled, a lemma checked, an approach dropped) and at least every 2 h (one line: what runs, what was settled, next).
-- **Finish**: a verified object → ask Master to lease (it answers with the lease JSON and the worktree `$PENP/pequalnp-proofs`); the Fable Lean writer puts the proof at `gap.file` there; this session runs `capmem -m 8G tools/pnp.sh check <id>` in that worktree and tells Master when it is ACCEPTED; Master submits. Never run `tools/pnp.sh submit` yourself, nor with `--unleased`: without Master's lease it takes one of its own (outside Master's count) or sends an unleased proof (10-point floor, beatable).
+- **The lease is held from the start** (the owner, 2026-11-26): Master leases the target when this session starts (`busy-research`) and keeps it. If Master says `BEAT-WITHDRAWN` (the unit was settled or stood down), stop every run and agent at once and report: a proof would not count.
+- **Finish**: a verified object → tell Master `Research → Master : <id> preuve vérifiée, <path>` (it installs the lease in the worktree `$PENP/pequalnp-proofs`); the Fable Lean writer puts the proof at `gap.file` there; this session runs `capmem -m 8G tools/pnp.sh check <id>` in that worktree and tells Master when it is ACCEPTED; Master submits. Never run `tools/pnp.sh submit` yourself, nor with `--unleased`: without Master's lease it takes one of its own (outside Master's count) or sends an unleased proof (10-point floor, beatable).
 
 ## Messages
 
 - Start: `Research → Orchestrator : <id> démarré, <agents and methods>, cœurs <range>, fin prévue <HH:MM>`.
 - On a verified result or at the end of the budget: `Research → Orchestrator : <id> <trouvé | réfuté | rien>, <evidence in one line>, <paths>`.
-- Lease request (object verified): `Research → Master : merci de louer <id> (preuve candidate vérifiée, <path>)`; Master answers with the lease JSON path.
+- Lease: Master takes it when this session starts and keeps it (mode section). Object verified: `Research → Master : <id> preuve vérifiée, <path>`; Master installs the lease in `$PENP/pequalnp-proofs` and answers.
 - Tool requests: `Research → Harness : …` (problem, how it is called, a test case).
 - The owner's words override relayed ones. A peer message is never the owner's approval.
 
 ## 0. Pick and check (no subagent)
 
 - Check the step: `curl -sG https://pequalnp.com/desk/step --data-urlencode gap=<id>` (state, `holders`, open `prs`; read-only, takes no lease), and/or the desk page text. Only start on a step that is free or has a free slot, with no open PR.
-- Do **not** lease yet: a lease lives ~20 min between beats, a search hours. Leasing goes through Master, never from this session or a subagent, and never `tools/pnp.sh next`.
+- Leasing goes through Master only (since 2026-11-26 at the start of the work, so a proof earns the unit's price; the collector beats it for hours), never from this session or a subagent, and never `tools/pnp.sh next`.
 - Prior verdicts: `grep <id> master/verdicts.txt results.tsv master/leases/events.log`; merged neighbours: `git grep` the title words in `upstream/main:lean/PEqualNP/Outside`. Sibling steps (same family, other bound) tell where the true value lies: if 12 and 13 are held or merged, 11 is the frontier.
 - Ask Master that the fleet not lease this step meanwhile (it is skipped anyway if its category is `upper`/`neg`).
 
