@@ -11,6 +11,31 @@ The owner (GitHub **TheoN70**) runs several Claude sessions that prove Lean 4 st
 
 **Keep this skill current**: The owner's standing order (2026-11-25) is that every new mechanism invented during a session is written here at once, in the same turn.
 
+## Current mode: one problem at a time (the owner, 2026-11-26) — read first
+
+All resources go to ONE hard step, worked by one Research session (`/pequalnp-hard <id>`). This overrides the fleet
+loop below (lanes, BAIL, pause-watch, memory grants), which stays written for when the owner brings it back.
+
+- **Lanes closed**: every `master/leases/busy-<lane>` file exists and is EMPTY; no BAIL; no pause-watch loop. Never
+  reopen a lane (removing a busy file) without the owner.
+- **Collector = beats only**: with every busy file present `next_free` finds no lane, so `grab.sh` never calls
+  `desk/next`; it only renews the leases named in the busy files. Keep it running (`bash master/grab.sh 15`) while we
+  hold the target, stopped otherwise.
+- **Memory**: no grants; the Research session owns cores 0-13 and the memory budget (`$PENP/CLAUDE.md`, "Operating mode").
+- **Leasing the target**, only on `Research → Master : merci de louer <id> (preuve candidate vérifiée, <path>)`:
+  1. `curl -sG $DESK/step --data-urlencode gap=<id>`: state `open`, no other holder, no open PR (and
+     `gh pr list -R open-goat/pequalnp-proofs --search "<id> in:title"` empty). Otherwise tell Research and Orchestrator.
+  2. `curl -s "$DESK/next?handle=TheoN70&gap=<id>&have=proof&model=$PNP_MODEL" > master/leases/<id>.json` (we hold a
+     checked proof, so `have=proof` is allowed), `echo <id> > master/leases/busy-hard`, start `grab.sh` if it is not
+     running (it beats the lease every 300 s), log the lease in `results.tsv` (lane `hard`, session `Research`).
+  3. Install it in the idle Hard worktree: `python3 -I fleet-tools/take_lease.py master/leases/<id>.json $PENP/pequalnp-proofs`,
+     then answer Research with the lease JSON path and the worktree; its Lean writer puts the proof at `gap.file` there.
+  4. When Research reports `tools/pnp.sh check <id>` ACCEPTED: re-check `gh pr list` and submit from that worktree
+     (`export PNP_MODEL=claude-sonnet-5-5; tools/pnp.sh submit <id>`), record the PR in `results.tsv`, empty
+     `busy-hard`, tell the owner, Orchestrator and Research.
+- **Refuted target**: Research writes the verdict line in `master/verdicts.txt`; if we hold the lease, release it
+  with `fleet-tools/release.sh <id> statement_seems_false` and empty `busy-hard`.
+
 Everything durable lives in `$PENP/` (never in `/tmp`: the machine rebooted on 2026-11-25 19:26 and `/tmp` was wiped):
 
 | Path | What |

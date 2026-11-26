@@ -13,6 +13,16 @@ The argument is a step id from https://pequalnp.com/desk (level `hard`). Call th
 
 The method is updated as we learn what works: add a line to **Lessons** at the end after every attempt, success or not.
 
+## Current mode: the whole machine on this step (the owner, 2026-11-26)
+
+This session is the only one computing (lanes closed, one Research session). Where this section and the rest disagree, this section wins.
+- **Resources**: cores 0-13 (14-15 stay with the app), memory = `free -g` "disponible" − 4 GB, split between agents with `capmem`. No lane deduction while every `master/leases/busy-*` file is empty. Up to 14 solver processes, at most one per core.
+- **Use the width for different methods, not copies**: 3 to 4 agents with distinct methods (exact SAT on the full encoding, a split of the search space into independent cubes or cases, a constructive/heuristic search, a mathematician + skeptic for an argument). The no-duplicate rule of "Load budget" still holds: no seed variants, no size implied by another run.
+- **No time budget**: work until found, refuted, or the owner stops. Prefer runs that keep progress when they die: split one huge SAT call into cubes or cases each written to its own result file, so a crash or a reboot loses one piece, not hours.
+- **Survive a restart**: every long run gets a STATUS line with the exact command, cores, start time, pid and output file. A new Research session started by Orchestrator on the same step reads them, watches what still runs and relaunches only what died with no result.
+- **Reports**: to Orchestrator at each milestone (a size settled, a lemma checked, an approach dropped) and at least every 2 h (one line: what runs, what was settled, next).
+- **Finish**: a verified object → ask Master to lease (it answers with the lease JSON and the worktree `$PENP/pequalnp-proofs`); the Fable Lean writer puts the proof at `gap.file` there; this session runs `capmem -m 8G tools/pnp.sh check <id>` in that worktree and tells Master when it is ACCEPTED; Master submits.
+
 ## Messages
 
 - Start: `Research → Orchestrator : <id> démarré, <agents and methods>, cœurs <range>, fin prévue <HH:MM>`.

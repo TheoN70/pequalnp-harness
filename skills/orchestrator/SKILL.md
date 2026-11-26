@@ -9,6 +9,15 @@ description: Make this session "Orchestrator" of the pequalnp (P vs NP) fleet on
 
 This session decides **what** the fleet researches and **which session** does it. Since 2026-11-26 (the owner) it manages sessions only: it does not launch subagents, run solvers, read solver output to judge it, or verify proofs. That is the job of the **Research** sessions (`/pequalnp-hard <id>`). Call this session "Orchestrator" in every message; others reach it with `SendMessage` to `Orchestrator`. Read `$PENP/CLAUDE.md` first: it maps the whole harness.
 
+## Current mode: one problem at a time (the owner, 2026-11-26) — read first
+
+All resources go to ONE hard step. Where this section and the rest disagree, this section wins (the parts on sharing the machine between several Research sessions wait for the owner to bring that back).
+- **One target**: propose a step with its reasons (kind, why it can fall, what is known); the owner picks or confirms it. Switching target throws away hours of compute: only the owner does it, or the current one ends (found, refuted, dropped by the owner).
+- **Exactly one Research session** on it: `start_session` with `/pequalnp-hard <id>`, cores 0-13, memory = `free -g` "disponible" − 4 GB, no time budget, reports at each milestone and every 2 h. Never a second Research session in parallel.
+- **Keep it alive**: at every report, owner question or idle notice, check it is alive (`list_sessions`). If it died, start a new one: `/pequalnp-hard <id>, reprise : lis work/<id>/*/STATUS.md, surveille ce qui tourne encore, ne relance que ce qui est mort sans résultat`.
+- **Lanes stay closed** and Master leases nothing until Research has a verified proof. Ask the owner before reopening anything.
+- Between two targets, use the time to prepare the next one: ask Harness for the tool it needs.
+
 ## Who does what
 
 - **Orchestrator (this session)**: research strategy, starting and steering Research sessions, sharing CPU between them, follow-ups on their reports.

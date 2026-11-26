@@ -13,6 +13,23 @@ pull requests to `open-goat/pequalnp-proofs` from the fork `TheoN70/pequalnp-pro
 handle **TheoN70**. A step counts only when the project's checker accepts its proof. The desk caps how many steps
 the handle holds at once (`capacity`), so leases are a shared, scarce resource: only Master takes them.
 
+## Operating mode: one problem at a time (the owner, 2026-11-26)
+
+The fleet no longer works many steps in parallel. **All the machine goes to one hard step** (long, costly searches),
+until it is found, refuted or the owner drops it. Only the owner switches mode or target.
+
+| Session | In this mode |
+|---|---|
+| Orchestrator | holds the one target (the owner picks or confirms it), keeps exactly one Research session alive on it, restarts it if it dies |
+| Research | the only session that computes: cores 0-13, memory = `free -g` "disponible" − 4 GB, no time budget, reports at each milestone and every 2 h |
+| Master | collector in beats-only mode (every `busy-*` file present: it never leases); leases the target only once Research has a verified proof, then the check and the PR |
+| Lanes | closed (empty `busy-*` files), no BAIL; their sessions stay idle |
+| Harness | tools the Research session asks for |
+
+Cores 14-15 stay with the desktop app and the sessions. `capmem` stays mandatory (each command capped: a runaway kills
+only itself), but the 4 GB per lane and Master's memory grants do not apply: Research owns the whole budget.
+The fleet-mode text below (lanes, auto-releases, grants) stays valid for when the owner brings that mode back.
+
 ## Roles (one session each; skill to take the role)
 
 | Session | Skill | Does | Never |
