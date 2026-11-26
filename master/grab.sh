@@ -5,24 +5,57 @@
 # marks the lane busy (leases/busy-<lane>) and appends "LEASED <lane> <id> <path>" to leases/events.log.
 # A busy lane is skipped until its busy file is removed (when the session says the step is finished).
 # Every 10 min it also renews the lease of each busy lane, so a step survives a session that stops beating;
-# it stops renewing a lease (and logs BEAT-END) once the desk refuses the beat (released, submitted, expired).
-DESK=https://pequalnp.com/desk
+# it stops renewing a lease (and logs BEAT-END) once the desk refuses the beat (released, submitted, expired);
+# BEAT-WITHDRAWN when that 410 says withdrawn: true (the unit was settled or stood down: do NOT submit it).
+# When desk/next has nothing (gap null) it waits the retry_after_s the answer names (1..3600 s) before asking again.
+#
+# grab.sh --unit <id> [--proof] <lane|research>   (Master only; one shot, works beside a running collector)
+#   leases that exact unit (desk/next &gap=<id>, as `pnp.sh next --unit`; with --proof, &have=proof as
+#   `pnp.sh next --proof-of`: only with a checked proof in hand, passes even if another agent holds it, except one
+#   that took it under 30 min ago). Writes leases/<id>.json and busy-<lane>, logs LEASED; the collector beats it.
+#   No auto-release filter: Master chose this unit. Exit 4 = not leased (the desk's reason is printed).
+DESK=${DESK:-https://pequalnp.com/desk}
 OUT=$(dirname "$(readlink -f "$0")")/leases; mkdir -p "$OUT"
 LOG="$OUT/events.log"; touch "$LOG"
+H=TheoN70
+log() { echo "$(date -u +%H:%M:%S) $*" >> "$LOG"; }
+if [ "${1:-}" = --unit ]; then
+  id=${2:-}; shift 2 2>/dev/null; q="&gap=$id"; how=unit
+  [ "${1:-}" = --proof ] && { q="$q&have=proof"; how=proof; shift; }
+  lane=${1:-}
+  [[ "$id" =~ ^L-[a-z]+-[0-9]+$ ]] && [[ "$lane" =~ ^[a-z0-9]+$ ]] || { echo "usage: grab.sh --unit <L-xxx-N> [--proof] <lane|research>" >&2; exit 1; }
+  [ -s "$OUT/busy-$lane" ] && { echo "busy-$lane already holds $(cat "$OUT/busy-$lane")" >&2; exit 1; }
+  exec 8>"$OUT/manager.lock"; flock 8
+  f="$OUT/.unit.json"
+  curl -sS --max-time 20 "$DESK/next?handle=$H&value=1&model=${PNP_MODEL:-claude-sonnet-5-5}$q" > "$f" 2>/dev/null || { echo "desk unreachable" >&2; exit 1; }
+  got=$(python3 -I -c 'import json,re,sys; g=json.load(open(sys.argv[1])).get("gap"); print(g["id"] if isinstance(g,dict) and re.fullmatch(r"L-[a-z]+-\d+", str(g.get("id",""))) else "")' "$f" 2>/dev/null)
+  if [ "$got" != "$id" ]; then
+    if [ -n "$got" ]; then  # the desk answered another unit: never keep it
+      lease=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["lease"]["id"])' "$f" 2>/dev/null)
+      curl -sS --max-time 20 -X POST "$DESK/release?lease=$lease&reason=other" >/dev/null 2>&1; log "RELEASED $lane $got other (asked $id)"
+    fi
+    why=$(python3 -I -c 'import json,re,sys; d=json.load(open(sys.argv[1])); print(re.sub(r"[^ -~]"," ",str(d.get("note") or d.get("error") or "no reason given"))[:300])' "$f" 2>/dev/null)
+    log "UNIT-REFUSED $lane $id ($how)"; echo "not leased: $id: $why" >&2; exit 4
+  fi
+  mv "$f" "$OUT/$id.json"; echo "$id" > "$OUT/busy-$lane"
+  log "LEASED $lane $id $OUT/$id.json (Master, --unit $how)"
+  echo "leased $id for $lane: $OUT/$id.json"; pgrep -f "master/grab.sh [0-9]" >/dev/null || echo "collector not running: start it (bash master/grab.sh 15) so the lease is beaten" >&2
+  exit 0
+fi
 # One collector at a time, including when Master restarts it.
 exec 9>"$OUT/collector.lock"
 flock -n 9 || { echo "collector already running" >&2; exit 0; }
 exec 8>"$OUT/manager.lock"
-H=TheoN70; N=${1:-30}; NORMAL_LANES=${NORMAL_LANES:-normal normal2 normal3 normal4 hard normal5 normal6}   # The owner 2026-11-25 18:40: Hard takes ordinary steps   # ponytail: the desk caps a handle at 5 held steps, so 4 normal + 1 hard is the max
+N=${1:-30}; NORMAL_LANES=${NORMAL_LANES:-normal normal2 normal3 normal4 hard normal5 normal6}   # The owner 2026-11-25 18:40: Hard takes ordinary steps   # ponytail: the desk caps a handle at 5 held steps, so 4 normal + 1 hard is the max
 next_normal=0; next_hard=0; hourly=$(( $(date +%s) + 3600 ))
-log() { echo "$(date -u +%H:%M:%S) $*" >> "$LOG"; }
 try_unlocked() { # $1 = lane, $2 = extra query; returns 1 when the desk had nothing for us
   [ -e "$OUT/busy-$1" ] && return 1
-  f="$OUT/.last.json"
+  f="$OUT/.last.json"; retry_s=300
   curl -sS --max-time 20 "$DESK/next?handle=$H&another=1&model=${PNP_MODEL:-claude-sonnet-5-5}$2" > "$f" 2>/dev/null || return 1
   # a step this handle already holds (note "already hold") belongs to the other session: never hand it on
-  id=$(python3 -c 'import json,re,sys; d=json.load(open(sys.argv[1])); g=d.get("gap"); ok=g and re.fullmatch(r"L-[a-z]+-\d+", g.get("id","")); print(g["id"] if ok else "")' "$f" 2>/dev/null)
-  [ -z "$id" ] && return 1
+  # gap null: the answer names when to ask again (retry_after_s, 1..3600 s); the caller waits that long
+  read -r id retry_s <<< "$(python3 -c 'import json,re,sys; d=json.load(open(sys.argv[1])); g=d.get("gap"); ok=g and re.fullmatch(r"L-[a-z]+-\d+", g.get("id","")); w=d.get("retry_after_s"); print(g["id"] if ok else "-", w if type(w) is int and 1 <= w <= 3600 else 300)' "$f" 2>/dev/null)"
+  [ -z "$id" ] || [ "$id" = - ] && return 1
   # at its cap the desk hands back a step we already hold (note "release one to get another"): never give it to a 2nd lane
   # the desk re-issues that step under a NEW lease id (the old one then answers 410): keep the new one so beats keep working
   grep -qxF "$id" "$OUT"/busy-* 2>/dev/null && { mv "$f" "$OUT/$id.json"; log "CAPPED $1 $id already held, lease re-issued"; return 1; }
@@ -79,9 +112,12 @@ beat_unlocked() { # renew the lease of each busy lane; stop renewing it once the
     [ -e "$b" ] || continue
     id=$(cat "$b"); [ -n "$id" ] && [ -e "$OUT/$id.json" ] || continue
     lease=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["lease"]["id"])' "$OUT/$id.json" 2>/dev/null)
-    code=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' -X POST "$DESK/beat?lease=$lease" 2>/dev/null)
+    code=$(curl -sS --max-time 20 -o "$OUT/.beat.json" -w '%{http_code}' -X POST "$DESK/beat?lease=$lease" 2>/dev/null)
     if [ "$code" = 410 ]; then
-      : > "$b"; log "BEAT-END ${b##*/busy-} $id http=$code"
+      : > "$b"
+      if python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get("withdrawn") is True else 1)' "$OUT/.beat.json" 2>/dev/null; then
+        log "BEAT-WITHDRAWN ${b##*/busy-} $id (settled or stood down: do not submit)"
+      else log "BEAT-END ${b##*/busy-} $id http=$code"; fi
     elif [ "$code" != 200 ]; then log "BEAT-ERROR ${b##*/busy-} $id http=$code"; fi
   done
 }
@@ -107,10 +143,10 @@ while true; do
   # normal lanes: one per session working on normal steps (normal = session Normal, normal2 = the next one)
   free=$(next_free)
   if [ -n "$free" ] && [ "$n" -gt 0 ] && [ "$now" -ge "$next_normal" ]; then
-    try "$free" ""; [ $? -eq 1 ] && next_normal=$(( now + 300 ))   # desk asks for 300 s between next calls
+    try "$free" ""; [ $? -eq 1 ] && next_normal=$(( now + ${retry_s:-300} ))   # the desk's retry_after_s, else 300 s
   fi
   if [ -n "${HARD_STEPS:-}" ] && [ ! -e "$OUT/busy-hard" ] && { [ "$h" -ge 5 ] || [ "$now" -ge "$hourly" ]; } && [ "$now" -ge "$next_hard" ]; then
-    hourly=$(( now + 3600 )); try hard "&hard=1" || next_hard=$(( now + 300 ))
+    hourly=$(( now + 3600 )); try hard "&hard=1" || next_hard=$(( now + ${retry_s:-300} ))
   fi
   if [ "$now" -ge "$next_beat" ]; then beat; next_beat=$(( now + 300 )); fi   # lease lasts 20 min, renew every 10
   sleep "$N"

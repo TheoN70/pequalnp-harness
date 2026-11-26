@@ -21,7 +21,7 @@ This session is the only one computing (lanes closed, one Research session). Whe
 - **No time budget**: work until found, refuted, or the owner stops. Prefer runs that keep progress when they die: split one huge SAT call into cubes or cases each written to its own result file, so a crash or a reboot loses one piece, not hours.
 - **Survive a restart**: every long run gets a STATUS line with the exact command, cores, start time, pid and output file. A new Research session started by Orchestrator on the same step reads them, watches what still runs and relaunches only what died with no result.
 - **Reports**: to Orchestrator at each milestone (a size settled, a lemma checked, an approach dropped) and at least every 2 h (one line: what runs, what was settled, next).
-- **Finish**: a verified object → ask Master to lease (it answers with the lease JSON and the worktree `$PENP/pequalnp-proofs`); the Fable Lean writer puts the proof at `gap.file` there; this session runs `capmem -m 8G tools/pnp.sh check <id>` in that worktree and tells Master when it is ACCEPTED; Master submits.
+- **Finish**: a verified object → ask Master to lease (it answers with the lease JSON and the worktree `$PENP/pequalnp-proofs`); the Fable Lean writer puts the proof at `gap.file` there; this session runs `capmem -m 8G tools/pnp.sh check <id>` in that worktree and tells Master when it is ACCEPTED; Master submits. Never run `tools/pnp.sh submit` yourself, nor with `--unleased`: without Master's lease it takes one of its own (outside Master's count) or sends an unleased proof (10-point floor, beatable).
 
 ## Messages
 

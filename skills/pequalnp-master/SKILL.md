@@ -25,9 +25,11 @@ loop below (lanes, BAIL, pause-watch, memory grants), which stays written for wh
 - **Leasing the target**, only on `Research → Master : merci de louer <id> (preuve candidate vérifiée, <path>)`:
   1. `curl -sG $DESK/step --data-urlencode gap=<id>`: state `open`, no other holder, no open PR (and
      `gh pr list -R open-goat/pequalnp-proofs --search "<id> in:title"` empty). Otherwise tell Research and Orchestrator.
-  2. `curl -s "$DESK/next?handle=TheoN70&gap=<id>&have=proof&model=$PNP_MODEL" > master/leases/<id>.json` (we hold a
-     checked proof, so `have=proof` is allowed), `echo <id> > master/leases/busy-hard`, start `grab.sh` if it is not
-     running (it beats the lease every 300 s), log the lease in `results.tsv` (lane `hard`, session `Research`).
+  2. `bash master/grab.sh --unit <id> --proof hard` (we hold a checked proof, so `have=proof` is allowed): it writes
+     `master/leases/<id>.json` and `busy-hard`, logs LEASED, exit 4 + the desk's reason if not leased. Start the
+     collector if it is not running (it beats the lease every 300 s); log the lease in `results.tsv` (lane `hard`,
+     session `Research`). A `BEAT-WITHDRAWN` in events.log means the unit was settled or stood down: tell Research to
+     stop, never submit it.
   3. Install it in the idle Hard worktree: `python3 -I fleet-tools/take_lease.py master/leases/<id>.json $PENP/pequalnp-proofs`,
      then answer Research with the lease JSON path and the worktree; its Lean writer puts the proof at `gap.file` there.
   4. When Research reports `tools/pnp.sh check <id>` ACCEPTED: re-check `gh pr list` and submit from that worktree
@@ -148,8 +150,8 @@ The Codex fleet that shared the TheoN70 handle was retired on 2026-11-26 (the ow
 
 ## Desk facts
 
-- `GET /desk/next?handle=TheoN70&another=1&model=claude-sonnet-5-5` → `gap` + `lease` (+ `holding`, `capacity`). Always send `&model=` (join.txt, founder's ask 2026-11-26; `grab.sh` sends `${PNP_MODEL:-claude-sonnet-5-5}`). 20-min lease, beat every 5 min (grab.sh: 300 s), 410 = gone. `&gap=<id>` alone is IGNORED (the desk hands out something else). `&gap=<id>&have=proof` leases one named step, ONLY when we already hold a checked proof of it (join.txt: `--proof-of`). Never use it just to read a statement (done once for L-meta-8893 on 2026-11-26: wrong); read it from the parent's sketch or wait for the desk to offer it.
-- join.txt changes: compare with `master/join-<date>.txt` (baseline 2026-11-26) and `git log origin/main..upstream/main -- tools/pnp.sh` (the fork lags upstream). Since 2026-11-26 upstream pnp.sh: `next` sends PNP_MODEL, a STOP file at upstream main's root stops next/beat/submit (exit 120), `submit` leases the step first if not held. Lanes must `export PNP_MODEL=claude-sonnet-5-5` and run upstream pnp.sh (refresh needs the owner: cc-safety-net blocks `git checkout <ref> -- <path>`).
+- `GET /desk/next?handle=TheoN70&another=1&model=claude-sonnet-5-5` → `gap` + `lease` (+ `holding`, `capacity`). Always send `&model=` (join.txt, founder's ask 2026-11-26; `grab.sh` sends `${PNP_MODEL:-claude-sonnet-5-5}`). 20-min lease, beat every 5 min (grab.sh: 300 s), 410 = gone. `&gap=<id>` leases that exact unit or nothing (join.txt 2026-11-26, `pnp.sh next --unit`; Master: `grab.sh --unit <id> <lane>`). `&gap=<id>&have=proof` leases a named unit even while another agent holds it (except one taken under 30 min ago), ONLY when we already hold a checked proof of it (`pnp.sh next --proof-of`; Master: `grab.sh --unit <id> --proof <lane>`). An empty answer names `retry_after_s` (1..3600 s); grab.sh waits that long. A beat's 410 with `withdrawn: true` = settled or stood down: do not submit (grab.sh logs `BEAT-WITHDRAWN`). Never use it just to read a statement (done once for L-meta-8893 on 2026-11-26: wrong); read it from the parent's sketch or wait for the desk to offer it.
+- join.txt changes: compare with `master/join-<date>.txt` (baseline 2026-11-26, refreshed after the "unit"/points/retry_after_s/withdrawn change) and `git log origin/main..upstream/main -- tools/pnp.sh` (the fork lags upstream). Since 2026-11-26 upstream pnp.sh: `next` sends PNP_MODEL, a STOP file at upstream main's root stops next/beat/submit (exit 120), `submit` leases the step first if not held. Lanes must `export PNP_MODEL=claude-sonnet-5-5` and run upstream pnp.sh (refresh needs the owner: cc-safety-net blocks `git checkout <ref> -- <path>`).
 - Released as `other` or `out_of_time` = not re-offered to us for an hour (join.txt).
 - `GET /desk/stats` (`offerable_now`, `offerable_now_ordinary`); `GET /desk/step?gap=<id>` (open / leased (+holders) / pr_open (+prs) / not_open; `open` with `resting_after_submit` or `resting_after_expiry` = not free); `POST /desk/release?lease=&reason=` (`missing_lemma`, `statement_seems_false`, `out_of_time`, `does_not_elaborate`, `other`…; `exhausted` only for sharded searches).
 - The desk can lease us a step that already has someone else's open PR: check GitHub, not only the desk.
