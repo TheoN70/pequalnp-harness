@@ -28,7 +28,7 @@ This session builds the tools the fleet uses to solve steps from https://pequaln
 | `master/grab.sh` | lease collector: polls the desk, leases for the next free lane (round robin `next_free`), beats, auto-releases verdicts |
 | `master/twin_merged.py`, `master/join-<date>.txt` | negation auto-triage; baseline of the desk's instructions |
 | `fleet-tools/` | search tools (C exact and local searches, SAT via `sat-venv`, LRAT, Lean generators), `Makefile`, `requirements.txt`, playbook `README.md` |
-| `skills/` | `pequalnp-master`, `pequalnp-lane`, `pequalnp-hard`, `harness` (this file) |
+| `skills/` | `pequalnp-master`, `pequalnp-lane`, `pequalnp-hard`, `orchestrator`, `harness` (this file) |
 
 Outside the repo but part of the harness: `penp/.mcp.json` (lean-lsp-mcp, started with `--disable-tools lean_build` so no agent rebuilds the shared clone) and Cirbo (exact circuit synthesis by SAT, `work/tools/cirbo-src` at commit ca19a9f + `work/tools/cirbo-venv`; basis `[lnot_, and_, or_]`, its row j puts input 0 on the most significant bit). Both are to be packaged into the repo.
 
