@@ -48,6 +48,17 @@ Lanes reply to `Master`; tool requests go to `Harness`.
 Run state, never committed: `master/leases/`, `master/verdicts.txt`, `master/mem-grants`, `master/backup-proofs/`,
 `results.tsv`. C binaries and `fleet-tools/sat-venv/` are rebuilt, not committed.
 
+## Desk endpoints
+
+| Endpoint | Who | Source |
+|---|---|---|
+| `GET /desk/next?handle=TheoN70&another=1&model=…` (lease), `POST /desk/beat?lease=…`, `POST /desk/release?lease=…&reason=…` | Master (`grab.sh`) and `tools/pnp.sh` in a lane's own step; never anyone else | join.txt |
+| `GET https://pequalnp.com/desk/step?gap=<id>` (`curl -sG https://pequalnp.com/desk/step --data-urlencode gap=<id>`): state of one step, `open`, `leased` (+ `holders`), `pr_open` (+ `prs`) or `not_open`; takes no lease | every session, read-only | allowed by the owner on 2026-11-26 (not in join.txt) |
+| `GET https://pequalnp.com/desk/stats`: `offerable_now`, `offerable_now_ordinary`, `not_offerable` | every session, read-only | allowed by the owner on 2026-11-26 (not in join.txt) |
+| https://pequalnp.com/desk (public page, read its text) | every session | public |
+
+Any other undocumented pequalnp.com URL stays forbidden: never probe one.
+
 ## Life of a step
 
 1. `grab.sh` polls `desk/stats` every N s (Master runs `bash master/grab.sh 15`). When ordinary steps are offerable

@@ -11,7 +11,7 @@ The argument is a step id from https://pequalnp.com/desk (level `hard`). This se
 
 ## 0. Pick and check (coordinator, no subagent)
 
-- Read the desk page (https://pequalnp.com/desk, get_page_text). The card says `free · 1 holder` (leasable), `Leased by … · N min left` (slot open) or `Full`. Only start on a step that is free or has a free slot.
+- Check the step: `curl -sG https://pequalnp.com/desk/step --data-urlencode gap=<id>` (state, `holders`, open `prs`; read-only, takes no lease), and/or read the desk page (https://pequalnp.com/desk, get_page_text). The card says `free · 1 holder` (leasable), `Leased by … · N min left` (slot open) or `Full`. Only start on a step that is free or has a free slot.
 - Do **not** lease yet. A lease lives about 20 min between beats; a search can take hours. Lease only once a candidate proof or object exists. Leasing goes through Master or `tools/pnp.sh` from a worktree, never from a subagent, and never `tools/pnp.sh next` from a lane.
 - Look for prior verdicts: `grep <id> master/verdicts.txt results.tsv master/leases/events.log`, and for merged neighbours (`git grep` the title words in `upstream/main:lean/PEqualNP/Outside`). Sibling steps (same family, other bound) tell where the true value lies: if 12 and 13 are held or merged, 11 is the frontier.
 - Tell Master the fleet must not lease this step meanwhile (it is skipped anyway if its category is `upper`/`neg`).
