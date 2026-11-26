@@ -58,6 +58,24 @@ header h1{font-size:16px;font-weight:600;margin:0;color:var(--ink2)}
 pre{font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-word;color:var(--ink2);background:#0d0e12;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:420px;overflow:auto;margin:8px 0 0}
 .run{color:#8fc0f5}.run::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--glow);margin-right:5px;animation:blink 1.2s infinite alternate}
 @keyframes blink{to{opacity:.25}}
+/* research sessions */
+.sess{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:12px}
+.ses{border:1px solid var(--line);border-radius:12px;padding:12px;background:rgba(0,0,0,.18);display:flex;flex-direction:column;gap:10px;min-width:0}
+.ses.act{border-color:var(--magenta);box-shadow:0 0 24px -10px var(--magenta)}
+.ses .hd{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.ses .nm{font:600 15px var(--mono)}
+.said{font-size:12.5px;color:var(--ink2);border-left:2px solid var(--magenta);padding:2px 0 2px 10px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.sub{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.agents{display:flex;flex-direction:column;gap:5px}
+.agent{display:grid;grid-template-columns:16px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12.5px}
+.agent .nm2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--magenta);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ok{color:var(--good);font-weight:700;text-align:center}.zz{color:var(--muted);text-align:center}
+.thread{display:flex;flex-direction:column;gap:4px;max-height:190px;overflow:auto}
+.msg{display:grid;grid-template-columns:44px 18px minmax(0,1fr);gap:6px;font-size:12px;align-items:start}
+.msg .t{font-family:var(--mono);color:var(--muted)}.msg .d{text-align:center;font-weight:700}
+.msg .d.in{color:#8fc0f5}.msg .d.out{color:var(--magenta)}
+.msg .x{color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* machine */
 .cores{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
 .core{aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;font:600 11px var(--mono);color:#fff;border:1px solid rgba(255,255,255,.06);transition:background .8s}
@@ -108,6 +126,7 @@ svg .lab{fill:var(--ink2)} svg .mark{transition:opacity .15s} svg .mark:hover{op
     <span class="pill"><span class="dot" id="live"></span><span id="p-live">connexion…</span></span>
   </header>
   <div class="grid kpis" id="kpis"></div>
+  <section class="card" style="margin-bottom:14px"><h2>Sessions Research <span class="sp"></span><small class="muted">une session par étape difficile, lancée par l'Orchestrator · lue dans les transcripts</small></h2><div id="sessions"></div></section>
   <div class="grid g2">
     <section class="card"><h2>Recherches en cours <span class="sp"></span><small class="muted">dossiers work/&lt;id&gt;/ · cliquer une méthode pour lire son STATUS</small></h2><div id="research"></div></section>
     <section class="card"><h2>Machine</h2><div id="machine"></div></section>
@@ -153,7 +172,7 @@ function kpis(){
     ["Mergées",m,`${(100*m/Math.max(n,1)).toFixed(1).replace(".",",")} % des baux`,"--aqua"],
     ["PR en attente",sub,"soumises, pas encore mergées","--blue"],
     ["Verdicts enregistrés",v,Object.entries(S.verdicts).map(([k,x])=>`${x} ${e(k.replaceAll("_"," "))}`).join(" · "),"--yellow"],
-    ["Recherches actives",runs,`${S.research.length} dossier(s) dans work/`,"--magenta"],
+    ["Sessions Research",(S.sessions||[]).length,`${(S.sessions||[]).reduce((n,s)=>n+s.agents.filter(a=>!a.finished).length,0)} sous-agent(s) en cours · ${runs} recherche(s) avec solveurs`,"--magenta"],
     ["Solveurs actifs",`${act}<span class="muted" style="font-size:18px"> / ${S.budget}</span>`,`<div class="seg">${seg}</div>`,act>S.budget?"--crit":"--blue"],
     ["Offrables au guichet",d.offerable_now_ordinary??"–",d.error?`<span class="err">guichet injoignable</span>`:S.desk?`${d.offerable_now??"–"} en comptant les difficiles`:"lecture du guichet coupée (DESK=0)","--orange"]];
   $("kpis").innerHTML=T.map(([l,val,s,c])=>`<div class="card kpi" style="--c:var(${c})"><div class="l">${l}</div><div class="v">${val}</div><div class="s">${s}</div></div>`).join("");
@@ -173,9 +192,31 @@ function research(){
         <span class="sp"></span><span class="muted small" data-tip="STATUS.md modifié il y a ${ago(S.now-m.updated)}\nDernier fichier écrit il y a ${ago(S.now-m.touched)}\n${m.files} fichiers">STATUS il y a ${ago(S.now-m.updated)}</span>
         <span class="ex">${e(ex)}</span></summary><pre>${e(m.status)}</pre></details>`}).join("");
     return `<div class="step"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="id">${e(r.step)}</span>${flags}
-      ${pr.length?`<span class="run">${pr.filter(p=>p.cpu>=50).length} solveur(s)</span>`:""}<span class="sp"></span>
+      ${pr.length?`<span class="run">${pr.filter(p=>p.cpu>=50).length} solveur(s)</span>`:""}
+      ${(S.sessions||[]).some(s=>s.step===r.step)?`<span class="badge">piloté par Research-${e(r.step)}</span>`:'<span class="badge warn" data-tip="Aucune session Research ne porte cette étape dans son titre">sans session Research</span>'}<span class="sp"></span>
       <a class="small" href="https://pequalnp.com/desk" target="_blank" rel="noopener">guichet ↗</a></div>
       <div class="ttl">${e(r.title||"(pas de bail local : titre inconnu)")}</div>${r.statement?`<div class="mono small muted" style="margin-bottom:6px;word-break:break-word">${e(r.statement)}</div>`:""}${ms||'<div class="muted small">Aucun STATUS.md.</div>'}</div>`}).join("");
+}
+
+const ACTIVE=180; // s without a transcript write before a session or agent counts as waiting
+const hm=iso=>iso?new Date(iso).toISOString().slice(11,16):"";
+function sessions(){
+  const L=S.sessions||[];
+  if(!L.length){$("sessions").innerHTML='<p class="muted">Aucune session Research. L\'Orchestrator en lance une par étape difficile (<span class="mono">/pequalnp-hard &lt;id&gt;</span>).</p>';return}
+  $("sessions").innerHTML=`<div class="sess">`+L.map(s=>{
+    const idle=S.now-s.touched, run=s.agents.filter(a=>!a.finished), busy=idle<ACTIVE||run.some(a=>S.now-a.touched<ACTIVE);
+    const solv=S.procs.filter(p=>s.step&&p.cwd.startsWith("work/"+s.step)&&p.cpu>=50).length;
+    const state=idle<ACTIVE?["on","travaille"]:run.length?["wait",`attend ${run.length} sous-agent${run.length>1?"s":""}`]:["","en attente"];
+    const ag=s.agents.map(a=>{const quiet=S.now-a.touched;
+      const ic=a.finished?'<span class="ok" aria-label="terminé">✓</span>':quiet<ACTIVE?'<span class="spin" aria-label="en cours"></span>':'<span class="zz" aria-label="silencieux">…</span>';
+      return `<div class="agent" data-tip="${e(a.what)}\nModèle : ${e(a.model)}\nLancé à ${hm(a.start)} UTC · ${a.calls} appels d'outils\nDernière écriture il y a ${ago(quiet)}">${ic}<span class="nm2">${e(a.what)}</span><span class="muted small mono">${a.finished?"fini":ago(S.now-Date.parse(a.start)/1000)}</span></div>`}).join("");
+    const th=s.msgs.slice().reverse().map(m=>`<div class="msg" data-tip="${e(m.who)} · ${hm(m.t)} UTC\n${e(m.text)}"><span class="t">${hm(m.t)}</span><span class="d ${m.dir}">${m.dir==="in"?"←":"→"}</span><span class="x">${m.dir==="in"?"de ":"à "}<b>${e(m.who)}</b> : ${e(m.text.replace(/^[^:]*→[^:]*:\s*/,""))}</span></div>`).join("");
+    return `<div class="ses ${busy?"act":""}"><div class="hd"><span class="dot ${state[0]}" ${state[0]?"":'style="background:var(--muted)"'}></span><span class="nm">${e(s.step?"Research-"+s.step:s.title)}</span>
+      <span class="badge">${state[1]}</span>${solv?`<span class="run">${solv} solveur(s)</span>`:""}<span class="sp" style="flex:1"></span>
+      <span class="muted small" data-tip="${e(s.title)}\n${s.calls} appels d'outils">depuis ${hm(s.start)} UTC · actif il y a ${ago(idle)}</span></div>
+      ${s.said?`<div class="said" data-tip="${e(s.said)}">${e(s.said)}</div>`:""}
+      <div><div class="sub">Sous-agents · ${run.length} en cours, ${s.agents.length-run.length} terminés</div><div class="agents" style="margin-top:6px">${ag||'<span class="muted small">Aucun lancé.</span>'}</div></div>
+      <div><div class="sub">Échanges avec les autres sessions</div><div class="thread" style="margin-top:6px">${th||'<span class="muted small">Aucun message.</span>'}</div></div></div>`}).join("")+`</div>`;
 }
 
 function spark(vals,max,color,label){
@@ -272,7 +313,7 @@ function tablesAndFeed(){
     return `<div class="ev"><span class="t">${e(m[1])}</span><span><i class="sw" style="background:var(${EC[m[2]]||"--axis"})"></i>${e(m[2])}</span><span class="x" data-tip="${e(m[3])}">${e(m[3].replace(/\S*\/leases\//,""))}</span></div>`}).join("")||'<p class="muted">Journal vide.</p>';
 }
 
-function render(){for(const f of [kpis,research,machine,lanes,desk,outcomes,tools,tablesAndFeed]){try{f()}catch(x){console.error(f.name,x)}}}
+function render(){for(const f of [kpis,sessions,research,machine,lanes,desk,outcomes,tools,tablesAndFeed]){try{f()}catch(x){console.error(f.name,x)}}}
 async function tick(){
   try{const r=await fetch("/api/state",{cache:"no-store"});if(!r.ok)throw new Error(r.status);S=await r.json();fails=0;
     if(!document.querySelector("details.method[open] pre:hover")&&!getSelection().toString())render();

@@ -283,6 +283,91 @@ def research():
     return out
 
 
+SESS = {}  # transcript path -> (mtime, parsed)
+XMSG = re.compile(r'<cross-session-message[^>]*from-name="([^"]*)"[^>]*>\s*(.*?)\s*</cross-session-message>', re.S)
+
+
+def first_line(s, n=240):
+    return next((l.strip() for l in str(s).splitlines() if l.strip()), "")[:n]
+
+
+def parse_session(path):
+    """Timeline of one Research session: start, last activity, messages with other sessions, last words."""
+    out = {"start": "", "last": "", "msgs": [], "said": "", "calls": 0}
+    try:
+        f = open(path, errors="replace")
+    except OSError:
+        return out
+    with f:
+        for raw in f:
+            if '"message"' not in raw:
+                continue
+            try:
+                d = json.loads(raw)
+                c = d["message"]["content"]
+            except (ValueError, KeyError, TypeError):
+                continue
+            ts = d.get("timestamp") or ""
+            if ts:
+                out["start"] = out["start"] or ts
+                out["last"] = max(out["last"], ts)
+            for b in [{"type": "text", "text": c}] if isinstance(c, str) else c if isinstance(c, list) else []:
+                if not isinstance(b, dict):
+                    continue
+                if b.get("type") == "tool_use":
+                    out["calls"] += 1
+                    if b.get("name") == "SendMessage":
+                        i = b.get("input") or {}
+                        out["msgs"].append({"t": ts, "dir": "out", "who": str(i.get("to", ""))[:60], "text": first_line(i.get("message", ""))})
+                elif b.get("type") == "text":
+                    t = str(b.get("text", ""))
+                    if d.get("type") == "user":
+                        for who, body in XMSG.findall(t):
+                            out["msgs"].append({"t": ts, "dir": "in", "who": who[:60], "text": first_line(body)})
+                    elif d.get("type") == "assistant" and t.strip():
+                        out["said"] = t.strip()[:500]
+    out["msgs"] = out["msgs"][-8:]
+    return out
+
+
+def parse_subagent(meta_path):
+    log = meta_path.removesuffix(".meta.json") + ".jsonl"
+    try:
+        meta = json.loads(read(meta_path) or "{}")
+    except ValueError:
+        meta = {}
+    start, calls = "", 0
+    for raw in read(log).splitlines():
+        if not start:
+            m = re.search(r'"timestamp":"([^"]+)"', raw)
+            start = m[1] if m else ""
+        calls += raw.count('"type":"tool_use"')
+    return {"what": str(meta.get("description", ""))[:120], "model": str(meta.get("model", "")),
+            "finished": bool(meta.get("finished")), "start": start, "calls": calls,
+            "touched": os.path.getmtime(log) if os.path.exists(log) else 0}
+
+
+def research_sessions(titles):
+    out = []
+    for sid, title in dict(titles).items():
+        if not str(title).startswith("Research"):
+            continue
+        path = os.path.join(TRANSCRIPTS, sid + ".jsonl")
+        try:
+            mt = os.path.getmtime(path)
+        except OSError:
+            continue
+        if SESS.get(path, (None,))[0] != mt:
+            SESS[path] = (mt, parse_session(path))
+        s = dict(SESS[path][1])
+        step = re.search(r"\bL-[a-z]+-\d+\b", title)
+        s.update({"title": str(title)[:120], "step": step[0] if step else "", "touched": mt,
+                  "agents": sorted((parse_subagent(m) for m in glob.glob(os.path.join(TRANSCRIPTS, sid, "subagents", "*.meta.json"))),
+                                   key=lambda a: a["start"])})
+        out.append(s)
+    return sorted(out, key=lambda s: -s["touched"])
+
+
 DESK = {"t": 0, "data": None}
 
 
@@ -314,7 +399,7 @@ def state(usage, machine):
         [1 for pid in filter(str.isdigit, os.listdir("/proc")) if "master/grab.sh" in read(f"/proc/{pid}/cmdline").replace("\0", " ")])
     return {"now": int(time.time()), "collector": collector, "desk": desk(), "lanes": lanes(), "results": results(),
             "verdicts": verdicts, "events": ev, "pause": read(os.path.join(LEASES, "pause-watch.log"), tail=2000).splitlines()[-6:],
-            "research": research(), "cores": machine.cores, "mem": getattr(machine, "mem", {}), "hist": machine.hist,
+            "research": research(), "sessions": research_sessions(usage.titles), "cores": machine.cores, "mem": getattr(machine, "mem", {}), "hist": machine.hist,
             "load": read("/proc/loadavg").split()[:3], "procs": machine.procs, "budget": SOLVER_BUDGET,
             "tools": usage.snapshot(machine.running_tools()), "usage_ready": usage.done}
 
@@ -360,6 +445,8 @@ def demo():
     got = {k: v["n"] for k, v in u.count.items()}
     assert got == {"capmem": 1, "live": 1, "circuit2lean.py": 1}, got
     assert all(t["what"] for t in u.cat if t["kind"] == "py"), [t["name"] for t in u.cat if not t["what"]]
+    msg = 'Another session: <cross-session-message from="x" from-session="y" from-name="Orchestrator" from-mode="p">\nOrchestrator → Research : go\nmore\n</cross-session-message>'
+    assert XMSG.findall(msg) == [("Orchestrator", "Orchestrator → Research : go\nmore")], XMSG.findall(msg)
     print("demo ok")
 
 
