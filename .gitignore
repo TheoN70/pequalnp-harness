@@ -5,6 +5,7 @@
 !/fleet-tools/*/
 !/fleet-tools/Makefile
 !/fleet-tools/capmem
+!/fleet-tools/slots
 /fleet-tools/pm/lsdnf
 /fleet-tools/pm/out.*
 /fleet-tools/sat-venv/

@@ -1,0 +1,126 @@
+#!/usr/bin/env -S python3 -I
+"""slots: which cores a new solver may use, under the fleet's load budget (pequalnp-hard, "Load budget").
+
+  fleet-tools/slots          table: load of each core over 1 s, the solvers running, the budget left
+  fleet-tools/slots N        prints N free cores as a taskset list (a contiguous range when one exists), e.g. 4-7;
+                             exit 1 with the reason on stderr when fewer are free or the budget would be exceeded
+  fleet-tools/slots --demo   self-check of the choice logic
+
+  taskset -c "$(fleet-tools/slots 4)" fleet-tools/capmem -m 6G <cmd>     # fails before starting anything if no room
+
+Rules: the last 2 cores are never handed out (the desktop app and the sessions live there); a core is free when it was
+below 50 % busy during the sample; at most BUDGET = 14 solvers in all, a solver being a process using >= 50 % of a core
+(a multi-threaded one counts once per core it uses). Read-only: it only reads /proc.
+ponytail: a 1 s sample, so a solver that just started or paused can be missed; run it right before launching.
+"""
+import os, sys, time
+
+BUDGET = 14
+BUSY = 50  # percent of one core
+
+
+def cpu_ticks():
+    t = {}
+    for line in open("/proc/stat"):
+        p = line.split()
+        if p[0].startswith("cpu") and p[0] != "cpu":
+            v = list(map(int, p[1:9]))
+            t[int(p[0][3:])] = (v[3] + v[4], sum(v))
+    return t
+
+
+def proc_ticks():
+    t = {}
+    for pid in filter(str.isdigit, os.listdir("/proc")):
+        try:
+            st = open(f"/proc/{pid}/stat").read().rsplit(")", 1)
+            f = st[1].split()
+            t[int(pid)] = (int(f[11]) + int(f[12]), st[0].split("(", 1)[1])
+        except (OSError, IndexError):
+            pass
+    return t
+
+
+def sample(dt=1.0):
+    c0, p0 = cpu_ticks(), proc_ticks()
+    t0 = time.time(); time.sleep(dt); dt = time.time() - t0
+    c1, p1 = cpu_ticks(), proc_ticks()
+    load = {c: round(100 * (1 - (c1[c][0] - c0[c][0]) / max(1, c1[c][1] - c0[c][1]))) for c in c1}
+    hz = os.sysconf("SC_CLK_TCK")
+    solvers = []
+    for pid, (ticks, comm) in p1.items():
+        if pid in p0 and pid != os.getpid():
+            pct = round(100 * (ticks - p0[pid][0]) / hz / dt)
+            if pct >= BUSY:
+                try:
+                    aff = sorted(os.sched_getaffinity(pid))
+                except OSError:
+                    aff = []
+                solvers.append((pid, comm, pct, aff))
+    return load, sorted(solvers, key=lambda s: -s[2])
+
+
+def compact(cores):
+    """[0,1,2,5,7,8] -> '0-2,5,7-8'"""
+    out, i = [], 0
+    while i < len(cores):
+        j = i
+        while j + 1 < len(cores) and cores[j + 1] == cores[j] + 1:
+            j += 1
+        out.append(str(cores[i]) if i == j else f"{cores[i]}-{cores[j]}")
+        i = j + 1
+    return ",".join(out)
+
+
+def choose(load, used, n, ncpu):
+    """N cores among the free ones, a contiguous run if possible (lowest first), else the least loaded. Error text if none."""
+    free = sorted(c for c in range(ncpu - 2) if load.get(c, 100) < BUSY)
+    if used + n > BUDGET:
+        return None, f"budget: {used} solvers running + {n} > {BUDGET}"
+    if n > len(free):
+        return None, f"only {len(free)} free cores ({compact(free) or 'none'}), {n} asked"
+    for i in range(len(free) - n + 1):
+        if free[i + n - 1] - free[i] == n - 1:
+            return compact(free[i:i + n]), None
+    return compact(sorted(sorted(free, key=lambda c: load[c])[:n])), None
+
+
+def demo():
+    idle = {c: 0 for c in range(16)}
+    assert choose(idle, 0, 4, 16) == ("0-3", None)
+    busy = idle | {1: 99, 2: 99}
+    assert choose(busy, 2, 3, 16) == ("3-5", None)
+    holes = {c: (0 if c in (0, 3, 6, 9) else 99) for c in range(16)}
+    assert choose(holes, 10, 3, 16) == ("0,3,6", None)
+    assert choose(idle, 12, 3, 16)[0] is None                    # 12 + 3 > 14
+    assert choose(idle | {c: 99 for c in range(12)}, 0, 3, 16)[0] is None  # 12, 13 free; 14, 15 never
+    assert compact([0, 1, 2, 5, 7, 8]) == "0-2,5,7-8"
+    print("demo ok")
+
+
+def main(argv):
+    if argv[1:] == ["--demo"]:
+        return demo()
+    ncpu = os.cpu_count()
+    load, solvers = sample()
+    used = sum(max(1, round(p / 100)) for _, _, p, _ in solvers)
+    if len(argv) == 2 and argv[1].isdigit() and int(argv[1]) > 0:
+        cores, why = choose(load, used, int(argv[1]), ncpu)
+        if why:
+            sys.exit(f"slots: no room: {why}")
+        print(cores)
+        return
+    if len(argv) > 1:
+        sys.exit(__doc__)
+    print("core  " + " ".join(f"{c:>3}" for c in range(ncpu)))
+    print("load% " + " ".join(f"{load[c]:>3}" for c in range(ncpu)))
+    free = [c for c in range(ncpu - 2) if load[c] < BUSY]
+    print(f"free (0-{ncpu - 3}, < {BUSY} %): {compact(free) or 'none'}; cores {ncpu - 2}-{ncpu - 1} never handed out")
+    print(f"solvers: {used} / {BUDGET} budget" + (" OVER BUDGET" if used > BUDGET else ""))
+    for pid, comm, pct, aff in solvers:
+        pin = compact(aff) if len(aff) < ncpu else "not pinned"
+        print(f"  {pid:>8} {comm[:20]:<20} {pct:>4} %  cores {pin}")
+
+
+if __name__ == "__main__":
+    main(sys.argv)

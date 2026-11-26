@@ -2,6 +2,8 @@
 
 Ce que les voies ont appris le 2026-11-25. À lire avant de trier une étape. Chaque session ajoute ici ce qu'elle découvre (une ligne par fait, avec l'étape qui l'a montré).
 
+## CŒURS LIBRES (2026-11-26) : `fleet-tools/slots` affiche la charge de chaque cœur sur 1 s et les solveurs en cours face au budget de 14 ; `fleet-tools/slots N` imprime N cœurs libres pour `taskset -c` (14-15 jamais) ou refuse (code 1) s'il n'y a pas la place : `taskset -c "$(fleet-tools/slots 4)" fleet-tools/capmem -m 6G <cmd>`.
+
 ## EXACT SAT ENCODING
 
 `circsat.py cnf|solve|decode <n> <s> <table|output>`: "f has a circuit of at most s AND/OR/NOT gates (NOT counted)" in pequalnp's model, as CNF (port of `LinkN.enc2`, so UNSAT certificates replay in Lean). `solve` runs CaDiCaL 1.9.5 (use `sat-venv/bin/python`) and prints the circuit as circuit2lean JSON; `cnf` writes DIMACS for an external solver or cube splitting, `decode` reads its `v` lines back. `--rows 0,5,…` encodes a subset of rows (CEGAR), `--no-not` forbids NOT (search only). Not for constant functions (enc2 sizes constant 1 wrongly). Run big instances under `taskset -c a-b capmem`.
