@@ -93,3 +93,4 @@ PAUSED by the owner at 07:56 UTC on 2026-11-27 (collector off, lanes closed, lan
 - 2026-11-27 17:33 UTC: note: the entries above stamped 17:40/17:50/18:30 'UTC' were local time (UTC+1); real UTC is one hour earlier.
 - 2026-11-27 17:33 UTC: Normal6 proved L-meta-27607 (PM3, true) → #41624; lane refilled with L-meta-27624. 10 PRs since 16:05.
 - 2026-11-27 17:36 UTC: 27624 false (normal6), twin 27625 held elsewhere (UNIT-REFUSED). 27332 false by read counting (normal3, route 0 in pm3/HOWTO.md), twin has another's PR. L-pcx-342 waits on L-pcx-341 (held elsewhere).
+- 2026-11-27 18:28 UTC: 5 lanes on one-NOT 8-vertex negations (29979, 28032, 29295, 28973, 28793), flagged by Harness. These negations have always been false (S+1 ≥ M). Twins: 3 with another's PR, 28792 leased elsewhere, 28031 open → Master leases it to Normal2 once 28032 is shown false (8-vertex generators). The other lanes release fast.

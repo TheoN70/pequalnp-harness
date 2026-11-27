@@ -16,3 +16,4 @@
 | 27684 | 11 (positive side) | or,0,1 or,2,9 | FALSE: both gates constant under x0=1, tail <= 9 < 10 (L_meta_27743.lower); released statement_seems_false (Normal6). pm3c killed at iter 5 |
 | 27607 | 12 | or,0,1 and,5,9 | TRUE by the 27743 route with stable f := ∀ y, y4 = (y4&&y0) → f(plug y)=f(off y) (wire 10 = x5&(x0|x1) is then stable, x0 and wire 9 constant under x0=1); Normal6, PR #41624 |
 | 27624 | 12 (some) | or,0,4 and,1,8 | FALSE by route 2 (start P=2 Q=3 as 27406); released statement_seems_false (Normal6); twin 27625 = adapt 27763 |
+| 27192 (POSITIVE, Normal) | 11 | and,0,4 not,9 | FALSE by hand: x0,x4 needed beyond G0 (cofactor x4=0 / x0=0), so 9 inputs + wire 10 + 8 live wires = 18 reads in 9x2 slots: tight, tail is a read-once AND/OR formula in x0..x8, y=NOT(x0x4); x4=0 gives y=1 and x0x5x7|x1x3x8|x1x5x6|x2x3x7 read-once, but x0-x5-x1-x3 is an induced P4 (not a cograph). pm3c at 24 rows undecided when the desk withdrew it (17:57) |
