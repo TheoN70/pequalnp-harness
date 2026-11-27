@@ -66,3 +66,4 @@ PAUSED by the owner at 07:56 UTC on 2026-11-27 (collector off, lanes closed, lan
 - Action: started Lane normal and Lane normal3 (Sonnet, shared checkout); Master keeps both units beaten and BAILs on check-in. Master says the Owner had asked to keep normal/normal3 closed: asked the Owner session to confirm; will stop both lanes if so.
 - Asymptotic family (binary address selector / pooled OR / rematching; 25715, 25702 out_of_time): no Research, lanes release in <=5 min.
 - Score 236, rank 178/972 (unchanged since 25 Nov).
+- 16:10 UTC: Owner confirms: keep normal/normal3 (closed only for lack of sessions), carte blanche on lanes; penplike at nice 19, ours first, keep 4 GB free. Solid rc=3 units are AUTO-RELEASED when all 3 lanes are full: proposed Lane normal4 (card, needs the owner's click; the app refuses session starts on a peer message). Master adds normal4 to NORMAL_LANES on check-in.
