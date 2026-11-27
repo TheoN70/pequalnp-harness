@@ -10,6 +10,8 @@ description: Initialise this session as a worker lane of the P vs NP (pequalnp.c
 The argument is the lane name (`normal2`, `normal3`, `hard2`...). A lane starting with `normal` gets ordinary steps, one starting with `hard` gets hard steps. Call this session by the lane name with the first letter capitalised (`Normal2`) in every message.
 
 
+**Background solvers (Orchestrator, 2026-11-27):** each solver started in the background gets `timeout 25m` (and `capmem` kills anything past 30 min by default); when you release or submit, kill everything you started (`pkill -f "[c]ircsat ..."`, the bracket keeps `pkill` off its own shell). Orphaned circsat runs once held all 14 cores for 31 min.
+
 **Cores (Orchestrator, 2026-11-27):** with no Research session running, lanes and autosolve use cores 0-13; when Orchestrator says a Research session holds 8-13, they keep to 0-7. Every heavy command of a lane: `export SLOTS_RANGE=0-13` (or `0-7` then), then `taskset -c "$(fleet-tools/slots N)" fleet-tools/capmem ...`.
 ## Who does what
 

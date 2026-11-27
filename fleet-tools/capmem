@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# Usage: capmem [-m 5G] <command> [args...]
-# Runs a heavy command (livegpx, live7, liveg, live, lsg, lake build...) in its own systemd scope with a hard memory cap.
-# Why: on 2026-11-25 20:30 a livegpx run grew to 24 GB, the kernel OOM-killed inside Claude Desktop's own cgroup and the app
-# crashed for every lane. Inside a capped scope only the command dies ("Killed", exit 137) and Claude keeps running.
+# Usage: capmem [-m 5G] [-t 30m] <command> [args...]
+# Runs a heavy command (livegpx, live7, liveg, live, lsg, lake build...) in its own systemd scope with a hard memory cap
+# and a hard run time: past -t (default 30m, systemd time span: 90s, 25m, 6h; 0 or infinity = none) the whole scope,
+# children included, is killed (SIGTERM, then SIGKILL). Why the cap: on 2026-11-25 20:30 a livegpx run grew to 24 GB,
+# the kernel OOM-killed inside Claude Desktop's own cgroup and the app crashed for every lane; inside a capped scope only
+# the command dies ("Killed", exit 137). Why the time limit: on 2026-11-27 a lane left circsat runs orphaned for 31 min
+# on all 14 cores (Orchestrator). Research's deliberate long runs pass -t 6h (or -t 0).
 # ponytail: 7 lanes x 4G = 28G of the 30G box (was 5G with 5 lanes); more only with a Master grant, one job at a time.
-cap=4G
-[ "$1" = "-m" ] && { cap=$2; shift 2; }
-exec systemd-run --user --scope --quiet -p MemoryMax="$cap" -p MemorySwapMax=0 "$@"
+cap=4G t=30m
+while :; do case $1 in -m) cap=$2; shift 2;; -t) t=$2; shift 2;; *) break;; esac; done
+[ "$t" = 0 ] && t=infinity
+exec systemd-run --user --scope --quiet -p MemoryMax="$cap" -p MemorySwapMax=0 -p RuntimeMaxSec="$t" "$@"

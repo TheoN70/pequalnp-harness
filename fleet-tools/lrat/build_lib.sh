@@ -31,7 +31,7 @@ if git -C "$CLONE" status --porcelain -- lean/PEqualNP/Library lean/PEqualNP/Def
 fi
 
 start=$(date +%s)
-nice -n "${NICE:-19}" taskset -c "${CORES:-15}" "$T/../capmem" -m "${MEM:-6G}" lake build $mods
+nice -n "${NICE:-19}" taskset -c "${CORES:-15}" "$T/../capmem" -m "${MEM:-6G}" -t 3h lake build $mods
 for m in $mods; do f=.lake/build/lib/lean/$(echo "$m" | tr . /).olean; [ -f "$f" ] || { echo "MISSING $f" >&2; exit 1; }; done
 
 # smoke test: the library is importable outside lake build

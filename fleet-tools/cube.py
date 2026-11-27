@@ -128,7 +128,7 @@ def run(d, ncores, mem="2G", lrat=False):
                 proof = f" {os.path.abspath(os.path.join(d, f'c_{i}.lrat'))} --lrat --binary=false" if lrat else ""
                 sh = f"{{ printf '{head}'; cat {body}; }} | {CADICAL} -q -{proof}"
                 out = open(os.path.join(d, f"c_{i}.out"), "w")
-                p = subprocess.Popen(["taskset", "-c", str(core), os.path.join(HERE, "capmem"), "-m", mem,
+                p = subprocess.Popen(["taskset", "-c", str(core), os.path.join(HERE, "capmem"), "-m", mem, "-t", os.environ.get("CUBE_T", "12h"),
                                       "sh", "-c", sh], stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
                 live[p.pid] = (p, i, core)
             time.sleep(1)

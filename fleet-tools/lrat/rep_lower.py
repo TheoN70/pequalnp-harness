@@ -78,7 +78,7 @@ def solve_all(wt, d, cubes, ncores, mem):
         while todo and free:
             k, c = todo.pop(0), free.pop(0)
             p = piece(d, k, base, cubes[k])
-            q = subprocess.Popen(["taskset", "-c", str(c), os.path.join(HERE, "..", "capmem"), "-m", mem, cad, "-q",
+            q = subprocess.Popen(["taskset", "-c", str(c), os.path.join(HERE, "..", "capmem"), "-m", mem, "-t", "12h", cad, "-q",
                                   "--lrat", "--binary=false", p, os.path.join(d, f"p{k}.lrat")],
                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             live[k] = (q, c)
