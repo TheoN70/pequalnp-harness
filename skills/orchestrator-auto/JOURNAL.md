@@ -91,3 +91,4 @@ PAUSED by the owner at 07:56 UTC on 2026-11-27 (collector off, lanes closed, lan
 - 18:30 UTC: PM3 family closed for us: 5 PRs by Normal4 (27743 route: 27543 #41219, 27539 #41236, 27551 #41256; 27763 route: 27406 #41374, 27408 #41432); 27462 released out_of_time (no route), in long-true.txt. Tools moved into fleet-tools/pm3/ (0a13b29). Wave total: 9 PRs since 16:05.
 - 2026-11-27 17:31 UTC: normal released L-meta-27198 and normal3 L-meta-27748 out_of_time (12-gate CEGAR undecided at the cap); both refilled by AUTO-HANDOFF within seconds (27192, L-pcx-342). All 6 lanes busy, 4 merged + 5 open PRs today. Long-true queue still waits for the end of the wave.
 - 2026-11-27 17:33 UTC: note: the entries above stamped 17:40/17:50/18:30 'UTC' were local time (UTC+1); real UTC is one hour earlier.
+- 2026-11-27 17:33 UTC: Normal6 proved L-meta-27607 (PM3, true) → #41624; lane refilled with L-meta-27624. 10 PRs since 16:05.
