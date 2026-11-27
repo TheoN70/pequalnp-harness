@@ -170,6 +170,8 @@ try_unlocked() { # $1 = lane, $2 = extra query; returns 1 when the desk had noth
   # waiting on other steps) stops applying once every blocker's file is on upstream main: the step goes to a lane.
   vline=$(awk -v i="$id" '$1==i{print; exit}' "$(dirname "$OUT")/verdicts.txt" 2>/dev/null)
   read -r _ why blockers <<< "$vline"; unblocked=
+  # out_of_time / other say nothing about the statement: a re-offered unit goes to a lane again (Orchestrator 2026-11-27)
+  case "$why" in out_of_time|other) why=; blockers= ;; esac
   if [ -n "$why" ] && [ -n "$blockers" ]; then
     open_b=""
     for b in $blockers; do
