@@ -16,5 +16,5 @@ tools/pnp.sh beat "$ID"
 N=${ID#L-meta-}; echo "edges $E ; twin L-meta-$((N-1)):"
 curl -sS -m 10 -G https://pequalnp.com/desk/step --data-urlencode "gap=L-meta-$((N-1))" | grep -E '"state"|"holders"|^\s+[0-9]+'
 cd "$(dirname "$0")"
-timeout 250 ./liveg 8 "$E" 0 0 7 16 27 2>&1 | grep -E "^N=" | tail -2
-PTS=0,1,2,4,8,16,32,64,128,254,253,251,247,239,223,191,127 timeout 400 ./livegpx 8 "$E" 1 0 2 8 13 28 2>&1 | grep -E "^N=|too large" | tail -3 | cut -c1-90
+timeout 250 ./capmem -m 2G ./liveg 8 "$E" 0 0 7 16 27 2>&1 | grep -E "^N=" | tail -2
+PTS=0,1,2,4,8,16,32,64,128,254,253,251,247,239,223,191,127 timeout 400 flock ../master/heavy.lock ./capmem -m 4G ./livegpx 8 "$E" 1 0 2 8 13 28 2>&1 | grep -E "^N=|too large" | tail -3 | cut -c1-90
