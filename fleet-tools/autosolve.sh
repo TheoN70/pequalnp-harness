@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 # Solve, check and submit one leased circuit unit with no LLM: two-lit, HasCircuitSize (upper/search), true RepSizeAtMost.
 #   autosolve.sh <lease.json> [worktree] [--dry]
-# lease.json: Master's leases/<id>.json (the lease Master holds). worktree: default $PENP/pequalnp-auto, made like a lane's.
+# lease.json: Master's leases/<id>.json (the lease Master holds). worktree: default the first free of
+# $PENP/pequalnp-auto1..5 (one run per worktree, so up to 5 in parallel, the handle's capacity), made like a lane's.
 # Steps: install the lease (take_lease.py); the desk's sketch if it fits in k, else circsat on 1 `slots` core, under
-# capmem, at most AUTOSOLVE_S seconds (600); circuit2lean.py; tools/pnp.sh check; tools/pnp.sh submit (PNP_MODEL set).
+# capmem, at most AUTOSOLVE_S seconds (120; past it the lane takes over); circuit2lean.py; tools/pnp.sh check; tools/pnp.sh submit (PNP_MODEL set).
 # --dry: compile the file with `lake build <module>` instead of check + submit, then restore the worktree (for tests).
 # Exit 0 submitted (or compiled, --dry); 1 Lean check or submit failed; 2 no circuit (UNSAT, time out, no free core,
 # unit already on main); 3 family not recognised.
-# ponytail: one run at a time per worktree (flock, waits up to 30 min); a second worktree if they queue up.
+# ponytail: a named worktree waits for its lock (30 min); the default pool takes a free one or exits 2 when all 5 are busy.
 set -u
 T=$(dirname "$(readlink -f "$0")"); PENP=$(dirname "$(dirname "$T")")
-lease=${1:?usage: autosolve.sh <lease.json> [worktree] [--dry]}; wt=${2:-$PENP/pequalnp-auto}; dry=${3:-}
-[ "$wt" = --dry ] && { wt=$PENP/pequalnp-auto; dry=--dry; }
+lease=${1:?usage: autosolve.sh <lease.json> [worktree] [--dry]}; wt=${2:-}; dry=${3:-}
+[ "$wt" = --dry ] && { wt=; dry=--dry; }
 export PNP_MODEL=${PNP_MODEL:-claude-sonnet-5-5}
-exec 7>"$wt.lock"; flock -w 1800 7 || { echo "worktree busy for 30 min" >&2; exit 2; }
+if [ -n "$wt" ]; then exec 7>"$wt.lock"; flock -w 1800 7 || { echo "worktree busy for 30 min" >&2; exit 2; }
+else
+  for i in 1 2 3 4 5; do wt=$PENP/pequalnp-auto$i; exec 7>"$wt.lock"; flock -n 7 && break; wt=; done
+  [ -n "$wt" ] || { echo "all 5 autosolve worktrees busy" >&2; exit 2; }
+fi
 if [ ! -d "$wt" ]; then
   git -C "$PENP/pequalnp-proofs" worktree add -q --detach "$wt" upstream/main || exit 1
   mkdir -p "$wt/lean/.lake"; ln -s "$PENP/pequalnp-proofs/lean/.lake/packages" "$wt/lean/.lake/packages"
@@ -24,7 +29,7 @@ read -r id file mod < <(python3 -I -c 'import json,sys; g=json.load(open(sys.arg
 out=$(python3 -I "$T/take_lease.py" "$lease" "$wt") || exit 1
 case $out in *"ALREADY EXISTED"*) [ -z "$dry" ] && { echo "$id is already on main" >&2; exit 2; } ;; esac
 core=$("$T/slots" 1) || { echo "no free core" >&2; exit 2; }
-timeout "${AUTOSOLVE_S:-600}" taskset -c "$core" "$T/capmem" -m 4G "$T/sat-venv/bin/python" -I "$T/autosolve.py" "$lease" "$wt/.pnp/$id.circuit.json"
+timeout "${AUTOSOLVE_S:-120}" taskset -c "$core" "$T/capmem" -m 4G "$T/sat-venv/bin/python" -I "$T/autosolve.py" "$lease" "$wt/.pnp/$id.circuit.json"
 rc=$?; [ $rc = 3 ] && exit 3; [ $rc = 0 ] || exit 2
 python3 -I "$T/circuit2lean.py" "$lease" "$wt/.pnp/$id.circuit.json" -o "$wt/$file" || exit 1
 core=$("$T/slots" 1) || core=   # the check runs on a free core if there is one

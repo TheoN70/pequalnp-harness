@@ -208,7 +208,7 @@ beat
 next_beat=$(( $(date +%s) + 300 ))
 while true; do
   now=$(date +%s)
-  r=$(curl -sS --max-time 15 "$DESK/stats" 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["offerable_now_ordinary"], d["offerable_now"]-d["offerable_now_ordinary"])' 2>/dev/null)
+  r=$(curl -sS --max-time 15 -w '\n%{http_code}' "$DESK/stats" 2>/dev/null); code=${r##*$'\n'}; r=$(printf '%s' "${r%$'\n'*}" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["offerable_now_ordinary"], d["offerable_now"]-d["offerable_now_ordinary"])' 2>/dev/null)
   set -- $r; n=${1:-0}; h=${2:-0}
   # normal lanes: one per session working on normal steps (normal = session Normal, normal2 = the next one)
   free=$(next_free)
@@ -219,5 +219,8 @@ while true; do
     hourly=$(( now + 3600 )); try hard "&hard=1" || next_hard=$(( now + ${retry_s:-300} ))
   fi
   if [ "$now" -ge "$next_beat" ]; then beat; next_beat=$(( now + 300 )); fi   # lease lasts 20 min, renew every 10
-  sleep "$N"
+  # Fast poll during a wave (Orchestrator 2026-11-27): 5 s while ordinary units are offered and a lane is free, the
+  # usual N otherwise; a 429 from the desk (rate limit) waits 60 s. ponytail: FAST_S=5, raise it if 429s show up.
+  if [ "$code" = 429 ]; then log "RATE-LIMITED stats http=429"; sleep 60
+  elif [ -n "$(next_free)" ] && [ "$n" -gt 0 ]; then sleep "${FAST_S:-5}"; else sleep "$N"; fi
 done

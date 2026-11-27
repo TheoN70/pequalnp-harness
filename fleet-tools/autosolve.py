@@ -3,11 +3,14 @@ Families: two-lit (`∃ C, FanInTwo C ∧ C.size ≤ k ∧ ∀ i j : Fin n, ...t
 (the function is `x i` with && || ! or `Nat.testBit (A) (∑ i : Fin n, if x i then 2 ^ (i : ℕ) else 0)`), and
 `RepSizeAtMost (fun (u : Fin n) (v : Fin m) => (mask : ℕ).testBit (m * u.val + v.val)) s` (AND/OR only).
 
+RepSizeAtMost first tries `lsr` (local search, LSR_S seconds, default 30): exact SAT took > 10 min on a 4x6 at 11 gates
+(merged L_meta_23657, edisonhello's `upper_mono : Monotone2 upperC` family), lsr finds such circuits in seconds.
+
 Usage: sat-venv/bin/python -I autosolve.py <lease.json> <circuit.json>
 Exit 0: circuit written (pequalnp numbering, for circuit2lean.py); 2: no circuit of <= k gates (UNSAT); 3: family not
 recognised. The caller bounds the time (timeout) and the memory (capmem); the Lean check stays circuit2lean + pnp.sh.
 """
-import json, os, re, sys
+import json, os, re, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import circsat, circuit2lean as c2l
 
@@ -53,7 +56,7 @@ def problem(gap):
                  for op, args in re.findall(r"\b(AND|OR|NOT)\s*\(([^)]*)\)", gap.get("sketch") or "")]
         if 0 < len(gates) <= k:
             sk = {"n": n, "gates": gates, "output": n + len(gates) - 1}
-        return n, k, table, rows, False, sk
+        return n, k, table, rows, False, sk, None
     m = c2l.REP.fullmatch(st)
     if m:
         n, mm, k = int(m[1]), int(m[2]), int(m[4])
@@ -61,15 +64,28 @@ def problem(gap):
         if not mk or int(mk[2]) != mm:
             return None
         pts = c2l.one_a_side(n, mm, int(mk[1]))
-        return n + mm, k, sum(1 << r for r, v in pts if v), [r for r, _ in pts], True, None
+        return n + mm, k, sum(1 << r for r, v in pts if v), [r for r, _ in pts], True, None, (n, mm, int(mk[1]))
     m = HCS.fullmatch(st)
     if m:
         n, k = int(m[1]), int(m[3])
         f = bool_fun(n, m[2])
         if f is None or n > 14:  # ponytail: n <= 14 is circuit2lean's ceiling
             return None
-        return n, k, sum(1 << r for r in range(2 ** n) if f([bool(r >> i & 1) for i in range(n)])), None, False, None
+        return n, k, sum(1 << r for r in range(2 ** n) if f([bool(r >> i & 1) for i in range(n)])), None, False, None, None
     return None
+
+
+def lsr(n, m, mask, k, secs):
+    """fleet-tools/lsr with k gates: wires 0..n-1 left, n..n+m-1 right, gate i = wire i, output = last gate; None if none."""
+    exe = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lsr")
+    a = "".join("1" if mask >> (m * u + v) & 1 else "0" for u in range(n) for v in range(m))
+    try:
+        out = subprocess.run([exe, str(k), "1", str(secs), str(n), str(m), a], capture_output=True, text=True,
+                             timeout=secs + 30).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    gates = [[op.lower(), [int(x), int(y)]] for op, x, y in re.findall(r"w\d+ = (AND|OR)\(w(\d+),w(\d+)\)", out)]
+    return {"n": n + m, "gates": gates, "output": n + m + len(gates) - 1} if "FOUND" in out and gates else None
 
 
 def fits(c, n, table, rows, no_not):
@@ -87,9 +103,11 @@ def main(lease, out):
     p = problem(gap)
     if p is None:
         print("family not recognised", file=sys.stderr); sys.exit(3)
-    n, k, table, rows, no_not, sk = p
+    n, k, table, rows, no_not, sk, rep = p
+    if rep and not sk:
+        sk = lsr(*rep, k, int(os.environ.get("LSR_S", 30)))
     if sk and fits(sk, n, table, rows, no_not):
-        c, how = sk, "sketch"
+        c, how = sk, "sketch" if not rep else "lsr"
     else:
         c, how = circsat.solve(n, k, table, rows, no_not), "circsat"
         if c is None:
@@ -103,7 +121,7 @@ def demo():
     st = ("∃ C : PEqualNP.CircuitLowerBounds.Circuit, PEqualNP.MetaComplexity.FanInTwo C ∧ C.size ≤ 10 ∧ ∀ i j : Fin 6, "
           "C.eval (List.ofFn fun k : Fin 6 => decide (k = i ∨ k = j)) = (2197163 : ℕ).testBit (6 * min i.val j.val + max i.val j.val)")
     sk = "OR(3,4), OR(1,2), AND(6,7), NOT(4), NOT(2), NOT(5), OR(0,11), AND(9,12), AND(10,13), OR(8,14)"
-    n, k, t, rows, nn, c = problem({"statement": st, "sketch": sk})
+    n, k, t, rows, nn, c, _ = problem({"statement": st, "sketch": sk})
     assert (n, k, len(rows)) == (6, 10, 21) and c and fits(c, n, t, rows, nn)
     assert not fits({**c, "gates": c["gates"][:-1] + [["and", [8, 14]]]}, n, t, rows, nn)
     s = circsat.solve(n, k, t, rows)
@@ -117,8 +135,10 @@ def demo():
     assert problem({"statement": "PEqualNP.MetaComplexity.HasCircuitSize 3 (fun x : Fin 3 → Bool => x 5) 4"}) is None
     # RepSizeAtMost 2x2 identity: AND/OR only, 4 promise rows
     p = problem({"statement": "PEqualNP.Represents.RepSizeAtMost (fun (u : Fin 2) (v : Fin 2) => (9 : ℕ).testBit (2 * u.val + v.val)) 3"})
-    assert p and p[0] == 4 and p[4] and len(p[3]) == 4
+    assert p and p[0] == 4 and p[4] and len(p[3]) == 4 and p[6] == (2, 2, 9)
     assert circsat.solve(*p[:5]) is not None and circsat.solve(p[0], 2, *p[2:5]) is None
+    c = lsr(2, 2, 9, 3, 5)
+    assert c and fits(c, *p[0:1], p[2], p[3], True), c
     print("demo ok")
 
 

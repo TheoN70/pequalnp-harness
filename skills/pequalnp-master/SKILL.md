@@ -123,10 +123,10 @@ Session ids change nothing across restarts but their socket addresses do: after 
 ## The loop
 
 **Tool events `AUTO-START` / `AUTO-SUBMITTED` / `AUTO-FAIL`** (since 2026-11-27): after each LEASED, grab.sh runs
-`fleet-tools/autosolve.sh` on the unit in the background (worktree `$PENP/pequalnp-auto`, ~1-10 min). Wait for its end
+`fleet-tools/autosolve.sh` on the unit in the background (worktrees `$PENP/pequalnp-auto1..5`, up to 5 at once, <= 2 min). Wait for its end
 before the BAIL. `AUTO-SUBMITTED <lane> <id>`: PR sent, lease released, busy file removed; record it in `results.tsv`
 (outcome `submitted`, note `autosolve`) and send no BAIL. `AUTO-FAIL <lane> <id> rc=N`: relay the unit as below (rc 2 =
-no circuit within k or 10 min: say so in the BAIL; rc 3 = not a circuit family; rc 1 = Lean check or submit failed: read
+no circuit within k or 2 min: say so in the BAIL; rc 3 = not a circuit family; rc 1 = Lean check or submit failed: read
 `master/leases/auto-<id>.log` first, never resubmit blindly). `AUTO=0` before `grab.sh` turns it off.
 
 **Tool event `LEASED <lane> <id> <json>`** → relay it:
