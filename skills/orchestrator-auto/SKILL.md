@@ -26,7 +26,7 @@ around; the harness repo is public (no secrets); `capmem` on every heavy command
 - Desk shows ~10-30 pts for solid units, 116-180 for hard `search` units (desk page, filter Kind).
 - Leaders win by **volume**: fededevi 247 units / 2 530 pts (many 10-pt units), merged in batches minutes after the
   units appear. New units come in waves; at any moment `offerable_now_ordinary` is often 0 because 130+ handles poll.
-- Capacity: 5 units held at once per handle. A held unit that nobody works on is lost points: keep all 5 busy.
+- Capacity: read `capacity` in each lease answer (12 on 2026-11-27, grows as proofs are checked). Keep every slot busy; open/hard units go to autosolve only, never to a lane in volume mode.
 
 ## Strategy levers (keep the journal's scoreboard of each)
 
@@ -34,7 +34,7 @@ around; the harness repo is public (no secrets); `capmem` on every heavy command
    (~30 min), quick release of what is not tractable.
 2. **Automatic solvers** for recurring families (two-lit, HasCircuitSize, true RepSizeAtMost): a lease is solved,
    checked and submitted by a script in minutes, with no LLM. Every family seen twice is a candidate tool for Harness.
-3. **Hard search units** (100+ pts): only as a side bet on spare cores, one Research session, with a time limit.
+3. **Hard search units** (100+ pts): only as a side bet on cores 8-13 (0-7 belong to autosolve and lanes), one Research session, with a time limit.
 4. Cuts / reductions (1/4 price) when the desk offers nothing else.
 
 ## Journal discipline
