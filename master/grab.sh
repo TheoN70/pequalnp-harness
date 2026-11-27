@@ -231,7 +231,11 @@ next_free() { # round robin: first lane without a busy file, after the last one 
   [ -n "$cap" ] && [ "$(cat "$OUT"/busy-* 2>/dev/null | grep -c .)" -ge "$cap" ] && return
   last=$(cat "$OUT/last-assigned" 2>/dev/null)
   case " $LANES " in *" $last "*) ;; *) on=1;; esac
+  # all NORMAL_LANES busy: no lease for an auto slot either, its rc 2/3 would be released and lost for 1 h
+  # (Owner/Orchestrator 2026-11-27: 6 solid units lost in a minute). ponytail: also pauses autosolve families then.
+  local lane_free= n; for n in $NORMAL_LANES; do [ -e "$OUT/busy-$n" ] || lane_free=1; done
   for l in $LANES $LANES; do
+    [ -z "$lane_free" ] && case " $AUTO_LANES " in *" $l "*) [ "$l" = "$last" ] && on=1; continue;; esac
     [ -n "$on" ] && [ ! -e "$OUT/busy-$l" ] && { echo "$l"; return; }
     [ "$l" = "$last" ] && on=1
   done
