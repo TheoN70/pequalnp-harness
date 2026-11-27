@@ -10,7 +10,7 @@ description: Initialise this session as a worker lane of the P vs NP (pequalnp.c
 The argument is the lane name (`normal2`, `normal3`, `hard2`...). A lane starting with `normal` gets ordinary steps, one starting with `hard` gets hard steps. Call this session by the lane name with the first letter capitalised (`Normal2`) in every message.
 
 
-**Cores (Orchestrator, 2026-11-27):** lanes and autosolve run on cores 0-7, Research on 8-13. Every heavy command of a lane: `export SLOTS_RANGE=0-7`, then `taskset -c "$(fleet-tools/slots N)" fleet-tools/capmem ...`.
+**Cores (Orchestrator, 2026-11-27):** with no Research session running, lanes and autosolve use cores 0-13; when Orchestrator says a Research session holds 8-13, they keep to 0-7. Every heavy command of a lane: `export SLOTS_RANGE=0-13` (or `0-7` then), then `taskset -c "$(fleet-tools/slots N)" fleet-tools/capmem ...`.
 ## Who does what
 
 - **Master** (another local session) runs the lease tool: it watches the desk, takes each lease itself and sends it to a free lane. It also renews every lease it hands out every 10 minutes.

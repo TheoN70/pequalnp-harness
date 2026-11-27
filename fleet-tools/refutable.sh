@@ -14,5 +14,5 @@ import json, sys; sys.path.insert(0, sys.argv[2]); import autosolve
 g = json.load(open(sys.argv[1]))["gap"]; p = autosolve.problem(g)
 if not p or p[3] is not None or p[4] or p[0] > 4: sys.exit(1)   # HasCircuitSize only: all rows, NOT allowed
 print(p[0], p[1], p[2], g["id"].replace("-", "_") + "_refute")' "$lease" "$T" 2>/dev/null) || exit 1
-core=$(SLOTS_RANGE=${SLOTS_RANGE:-0-7} "$T/slots" 1 2>/dev/null) || exit 1
+core=$(SLOTS_RANGE=${SLOTS_RANGE:-0-13} "$T/slots" 1 2>/dev/null) || exit 1
 timeout 120 taskset -c "$core" "$T/capmem" -m 4G "$T/lrat/lower.sh" "$PENP/pequalnp-proofs" "$n" "$k" "$tab" "$out" "$mod" >/dev/null 2>&1

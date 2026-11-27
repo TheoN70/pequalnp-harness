@@ -32,7 +32,7 @@ NORMAL_LANES=${NORMAL_LANES:-normal normal2 normal3 normal4 hard normal5 normal6
 # AUTO_LANES (Orchestrator 2026-11-27, e.g. "auto1 auto2 auto3 auto4 auto5 auto6 auto7"): slots with no session; their
 # unit goes to autosolve only and is released at once when it fails. Never more held units than the desk's `capacity`.
 AUTO_LANES=${AUTO_LANES:-}
-export SLOTS_RANGE=${SLOTS_RANGE:-0-7}   # autosolve runs (and lanes) pick cores in 0-7; Research keeps 8-13
+export SLOTS_RANGE=${SLOTS_RANGE:-0-13}   # autosolve runs (and lanes): all 14 cores; SLOTS_RANGE=0-7 when a Research session holds 8-13
 log() { echo "$(date -u +%H:%M:%S) $*" >> "$LOG"; }
 # After each LEASED: fleet-tools/autosolve.sh in the background (AUTO=0 to stop). Logs AUTO-START, then AUTO-SUBMITTED
 # (PR sent, lease released by submit, busy file removed: the slot is free) or AUTO-FAIL rc=1|2|3 (unit left to its lane).
