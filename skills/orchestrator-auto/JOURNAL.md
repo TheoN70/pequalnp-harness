@@ -2,7 +2,7 @@
 
 ## Current strategy (2026-11-27 03:55 UTC)
 
-Volume first: collector back on, all 5 slots used, 3 Sonnet lanes + automatic solver for two-lit / circuit units
+PAUSED by the owner at 07:56 UTC on 2026-11-27 (collector off, lanes closed, lanes sessions idle). On resume, around 12 h UTC before the 14-19 h UTC waves: collector with NORMAL_LANES normal..normal3 + AUTO_LANES auto1..7, SKIP_CATS=neg.
 (Harness), one Research side bet on a hard search unit. Single-problem mode ended (0 points in ~10 h).
 
 ## Scoreboard
@@ -56,3 +56,5 @@ Volume first: collector back on, all 5 slots used, 3 Sonnet lanes + automatic so
 - 08:35 UTC: 0 PR overnight (lanes: 10009, 16081, 19384, 19696 out_of_time; auto: all false). Machine saturated: 7 circsat from a lane (3 orphaned, 31 min) + an unrelated project (~/Bureau/Boulot/penplike, lean ReplayAll, unpinned). Normal2 asked to kill its orphans; Harness asked for a hard solver timeout in capmem + lane rule. Lesson: lanes must kill their solvers on release.
 - 08:40 UTC: Normal2 killed its 7 solvers, released 17732 out_of_time; max 3 solvers + timeout per lane from now.
 - 08:45 UTC: Harness 662fe68: capmem -t (default 30 min, kills the whole systemd scope); lane skill: timeout 25m per background solver, pkill on release; Research uses -t 6h / -t 0.
+- 07:56 UTC: STOP by the owner (relayed by Stratégie, confirmed in events.log): collector stopped, lanes closed, no lease held. Nothing restarts and no session is created until the owner asks.
+- Resume plan (Stratégie, upstream PRs 24-26/11): waves arrive 14-19 h UTC (peaks 17 h on 25/11, 16 h on 26/11); nights and mornings empty. Restart ~12 h UTC with lanes + auto slots ready. The overnight run only met recycled false units, so the pipeline is still untested on a fresh wave.
