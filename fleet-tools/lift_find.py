@@ -19,7 +19,9 @@ for f in glob.glob(wt + "/lean/PEqualNP/Outside/L_meta_*.lean"):
     if "def coding : Fin 7" not in s or "theorem wholeBound" not in s: continue
     m = re.search(r"\[([0-9, ]+)\] : List ℕ", s[s.rindex("\ntheorem PEqualNP.Outside."):])
     if not m: continue
-    fl = [int(x) for x in m.group(1).split(",")]; ed = list(zip(fl[0::2], fl[1::2]))
+    fl = [int(x) for x in m.group(1).split(",")]
+    if max(fl) >= 7: continue  # ponytail: skip non 7-vertex lists (8-vertex files that also define coding : Fin 7)
+    ed = list(zip(fl[0::2], fl[1::2]))
     lib.setdefault(inv(7, ed), []).append((f, frozenset(frozenset(e) for e in ed)))
 print("merged ForestCore 7-vertex files:", sum(map(len, lib.values())))
 for v in range(8):
