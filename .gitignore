@@ -18,3 +18,5 @@ __pycache__/
 /master/verdicts.txt*
 /master/mem-grants
 /master/grab.sh.before-*
+master/heavy.lock
+master/long-true.txt
