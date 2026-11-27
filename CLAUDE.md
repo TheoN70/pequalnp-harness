@@ -287,3 +287,5 @@ A new file in `fleet-tools/` appears by itself; a tool outside it is one line in
 6. ~~Pseudo-Boolean (VeriPB) checker in Lean~~ measured 2026-11-26, not worth building: Exact's VeriPB proofs are 6-22x
    LARGER than LRAT and Exact is far slower (details in `fleet-tools/lrat/README.md`). Revisit only with a solver that
    reasons natively on cardinality and a much smaller proof on a real step.
+7. `bfcirc --rows` reads the table at bit = row VALUE (`tab >> r`, uint64): wrong for any row >= 64 (Represents 4x4, rows up to 136). Fix: bit k for the k-th listed row; until then use circsat for those families (Normal, L-meta-26297, 2026-11-27).
+8. One-NOT 8-vertex positive twins at M = 13 (e.g. L-meta-26911): no generator proves 13; build one if the family recurs (Orchestrator 2026-11-27).
