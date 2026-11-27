@@ -15,6 +15,7 @@ T=$(dirname "$(readlink -f "$0")"); PENP=$(dirname "$(dirname "$T")")
 lease=${1:?usage: autosolve.sh <lease.json> [worktree] [--dry]}; wt=${2:-}; dry=${3:-}
 [ "$wt" = --dry ] && { wt=; dry=--dry; }
 export PNP_MODEL=${PNP_MODEL:-claude-sonnet-5-5}
+export SLOTS_RANGE=${SLOTS_RANGE:-0-7}   # Orchestrator 2026-11-27: autosolve and lanes on 0-7, Research on 8-13
 if [ -n "$wt" ]; then exec 7>"$wt.lock"; flock -w 1800 7 || { echo "worktree busy for 30 min" >&2; exit 2; }
 else
   for i in $(seq 1 "${AUTO_PAR:-7}"); do wt=$PENP/pequalnp-auto$i; exec 7>"$wt.lock"; flock -n 7 && break; wt=; done
