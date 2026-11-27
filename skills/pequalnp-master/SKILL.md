@@ -113,7 +113,7 @@ Session ids change nothing across restarts but their socket addresses do: after 
 
 1. Is the tool alive? `pgrep -af master/grab.sh`. If not: `bash $PENP/master/grab.sh 5` with `run_in_background`. Every restart beats all busy leases at once.
 2. Arm the monitor (it expires after 5 min; re-arm it each time and read `tail -5 master/leases/events.log` to catch leases taken between two monitors — this was missed twice on 2026-11-25):
-   `tail -n 0 -F $PENP/master/leases/events.log | grep --line-buffered -E 'LEASED|START|BEAT-END|CAPPED'` (Monitor, persistent).
+   `tail -n 0 -F $PENP/master/leases/events.log | grep --line-buffered -E 'LEASED|START|BEAT-END|CAPPED|AUTO-'` (Monitor, persistent).
 3. Why did it die? `uptime` (machine reboot?) and `journalctl -k --since "-30 min" | grep -i oom` (a lane command over its memory?).
 4. Rebuild the picture: `for f in master/leases/busy-*; do echo "$f: $(cat $f)"; done`, the `in_progress` lines of `results.tsv`, and `curl -s "$DESK/step?gap=<id>"` for each busy step (`leased`, `open` = released, `pr_open`). Check whether the lane installed it (`ls <worktree>/.pnp/<id>.json`) or read its last turns with `list_events` (read only).
 5. A busy lease nobody installed: relay it again (say "renvoi, ignore si doublon"). A busy step already released by its lane: record it, remove the busy file.
@@ -121,6 +121,13 @@ Session ids change nothing across restarts but their socket addresses do: after 
 7. Start the desk watch loop and diff join.txt once now ("Keeping up with the desk" below).
 
 ## The loop
+
+**Tool events `AUTO-START` / `AUTO-SUBMITTED` / `AUTO-FAIL`** (since 2026-11-27): after each LEASED, grab.sh runs
+`fleet-tools/autosolve.sh` on the unit in the background (worktree `$PENP/pequalnp-auto`, ~1-10 min). Wait for its end
+before the BAIL. `AUTO-SUBMITTED <lane> <id>`: PR sent, lease released, busy file removed; record it in `results.tsv`
+(outcome `submitted`, note `autosolve`) and send no BAIL. `AUTO-FAIL <lane> <id> rc=N`: relay the unit as below (rc 2 =
+no circuit within k or 10 min: say so in the BAIL; rc 3 = not a circuit family; rc 1 = Lean check or submit failed: read
+`master/leases/auto-<id>.log` first, never resubmit blindly). `AUTO=0` before `grab.sh` turns it off.
 
 **Tool event `LEASED <lane> <id> <json>`** → relay it:
 - Read the JSON (`gap.title`, `gap.statement`, `lease.expires_at`).

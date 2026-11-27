@@ -15,6 +15,7 @@ test: bfcirc
 	sat-venv/bin/python -I circsat.py --demo
 	sat-venv/bin/python -I promise_batch.py --demo
 	./slots --demo
+	sat-venv/bin/python -I autosolve.py --demo
 	python3 -I cube.py --demo
 	./bfcirc 3 3 0xe8 | grep -q NONE && ./bfcirc 3 4 0xe8 | grep -q FOUND && ./bfcirc --two-lit 5 203 6 | grep -q NONE && ./bfcirc --two-lit 5 203 7 | grep -q FOUND && echo "bfcirc ok"
 

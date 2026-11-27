@@ -29,6 +29,17 @@ OUT=$(dirname "$(readlink -f "$0")")/leases; mkdir -p "$OUT"
 LOG="$OUT/events.log"; touch "$LOG"
 H=TheoN70
 log() { echo "$(date -u +%H:%M:%S) $*" >> "$LOG"; }
+# After each LEASED: fleet-tools/autosolve.sh in the background (AUTO=0 to stop). Logs AUTO-START, then AUTO-SUBMITTED
+# (PR sent, lease released by submit, busy file removed: the slot is free) or AUTO-FAIL rc=1|2|3 (unit left to its lane).
+auto() { # $1 = lane, $2 = id
+  [ "${AUTO:-1}" = 0 ] && return
+  log "AUTO-START $1 $2"
+  # setsid: survives the end of a --unit / --next call; fds 8 and 9 closed so the locks stay with the collector
+  setsid bash -c 'o=$1 l=$2 i=$3; "$o/../../fleet-tools/autosolve.sh" "$o/$i.json" > "$o/auto-$i.log" 2>&1; rc=$?
+    if [ $rc = 0 ]; then [ "$(cat "$o/busy-$l" 2>/dev/null)" = "$i" ] && rm -f "$o/busy-$l"; e="AUTO-SUBMITTED $l $i"
+    else e="AUTO-FAIL $l $i rc=$rc (log leases/auto-$i.log)"; fi
+    echo "$(date -u +%H:%M:%S) $e" >> "$o/events.log"' _ "$OUT" "$1" "$2" 9>&- 8>&- </dev/null >/dev/null 2>&1 &
+}
 if [ "${1:-}" = --unit ]; then
   id=${2:-}; shift 2 2>/dev/null; q="&gap=$id"; how=unit
   [ "${1:-}" = --proof ] && { q="$q&have=proof"; how=proof; shift; }
@@ -50,7 +61,7 @@ if [ "${1:-}" = --unit ]; then
     log "UNIT-REFUSED $lane $id ($how)"; echo "not leased: $id: $why" >&2; exit 4
   fi
   mv "$f" "$OUT/$id.json"; echo "$id" > "$OUT/busy-$lane"
-  log "LEASED $lane $id $OUT/$id.json (Master, --unit $how)"
+  log "LEASED $lane $id $OUT/$id.json (Master, --unit $how)"; auto "$lane" "$id"
   echo "leased $id for $lane: $OUT/$id.json"; pgrep -f "master/grab.sh [0-9]" >/dev/null || echo "collector not running: start it (bash master/grab.sh 15) so the lease is beaten" >&2
   exit 0
 fi
@@ -97,7 +108,7 @@ if [ "${1:-}" = --next ]; then
     [ $attempt = 5 ] && { echo "5 skipped units in a row: try again later" >&2; exit 7; }
   done
   mv "$f" "$OUT/$got.json"; echo "$got" > "$OUT/busy-$lane"
-  log "LEASED $lane $got $OUT/$got.json (Master, --next$q)"
+  log "LEASED $lane $got $OUT/$got.json (Master, --next$q)"; auto "$lane" "$got"
   echo "leased $got for $lane: $OUT/$got.json"; pgrep -f "master/grab.sh [0-9]" >/dev/null || echo "collector not running: start it (bash master/grab.sh 15) so the lease is beaten" >&2
   exit 0
 fi
@@ -164,7 +175,7 @@ try_unlocked() { # $1 = lane, $2 = extra query; returns 1 when the desk had noth
   fi
   echo "$id" > "$OUT/busy-$1"   # the busy file names the step, so beat() knows which lease to renew
   echo "$1" > "$OUT/last-assigned"
-  log "LEASED $1 $id $OUT/$id.json"
+  log "LEASED $1 $id $OUT/$id.json"; auto "$1" "$id"
 }
 beat_unlocked() { # renew the lease of each busy lane; stop renewing it once the desk says it is over (410 etc.)
   for b in "$OUT"/busy-*; do
