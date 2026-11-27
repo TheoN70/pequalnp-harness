@@ -15,3 +15,4 @@
 | 27198 (POSITIVE, Normal) | 11 | and,0,4 and,1,8 | c27198.out |
 | 27684 | 11 (positive side) | or,0,1 or,2,9 | FALSE: both gates constant under x0=1, tail <= 9 < 10 (L_meta_27743.lower); released statement_seems_false (Normal6). pm3c killed at iter 5 |
 | 27607 | 12 | or,0,1 and,5,9 | TRUE by the 27743 route with stable f := ∀ y, y4 = (y4&&y0) → f(plug y)=f(off y) (wire 10 = x5&(x0|x1) is then stable, x0 and wire 9 constant under x0=1); Normal6, PR #41624 |
+| 27624 | 12 (some) | or,0,4 and,1,8 | FALSE by route 2 (start P=2 Q=3 as 27406); released statement_seems_false (Normal6); twin 27625 = adapt 27763 |

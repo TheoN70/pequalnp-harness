@@ -2,6 +2,7 @@
 
 Statement is `¬ ∃ C ...`: SAT circuit = FALSE (statement_seems_false); otherwise prove it in Lean from one of these:
 
+0. **k = 11, both opening gates read inputs only** (27332/27333 AND(0,4)/OR(2,8), Normal3): pure counting, no SAT. The tail (9 gates, <= 18 input slots) must read all 9 inputs (each opening input stays needed in the cofactor freezing its gate: check perm3 there) plus the 10 non-output gate wires (hlive) = 19 > 18. So the "some" unit is false and its "no" twin follows from 27763's occTailInput + hlive count alone (no Ledger).
 1. **k = 11, x0 := 1 turns G0 into a constant and G1 into a literal or constant** (27543 OR(0,1)/AND(5,9), 27539 OR(0,1)/AND(3,9), 27551 OR(0,4)/AND(0,5)):
    adapt `L_meta_27743` (gate elimination). Keep Lower26514 / Pin26514 / Alternate27743 (`lower`: the x0=1 cofactor needs >= 10 gates, certificate tree).
    In Prefix: change `orig`/`bank` to the two opening functions; tail <= 9, so `Lower26514.project` with plug x0 := true is enough (no `save`); 10 <= 9 is the contradiction.
