@@ -161,7 +161,7 @@ Changing `grab.sh` needs a collector restart: `pkill -f master/grab.sh`, then `b
 
 Build: `make -C fleet-tools` (gcc, `-O3 -march=native -fopenmp`). SAT venv:
 `python3 -m venv fleet-tools/sat-venv && fleet-tools/sat-venv/bin/pip install -r fleet-tools/requirements.txt`.
-**Run anything heavy under `fleet-tools/capmem [-m 4G] [-t 30m] <cmd>`**: an uncapped search once grew to 24 GB and the OOM
+**Run anything heavy under `fleet-tools/capmem [-m 4G] [-t 30m] <cmd>`** (it first waits up to 10 min until "available" − cap ≥ 4 GB, else exit 75 without running; `CAPMEM_RESERVE_G`, `CAPMEM_WAIT_S`): an uncapped search once grew to 24 GB and the OOM
 killer took down Claude Desktop for every lane. 4G per lane by default; more only with a Master grant. Past `-t` (default 30 min,
 since 2026-11-27: orphaned circsat runs held 14 cores for 31 min) the whole scope is killed; Research's long runs pass `-t 6h` or `-t 0`
 (`cube.py` 12 h per cube, `rep_lower.py` 12 h, `build_lib.sh` 3 h).

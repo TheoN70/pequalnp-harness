@@ -10,4 +10,14 @@
 cap=4G t=30m
 while :; do case $1 in -m) cap=$2; shift 2;; -t) t=$2; shift 2;; *) break;; esac; done
 [ "$t" = 0 ] && t=infinity
+# Free-memory guard (Orchestrator 2026-11-27: a 7 GB lean build with 5 GB available killed Claude Desktop at 19:16 UTC,
+# as at 16:40): wait until MemAvailable - cap >= CAPMEM_RESERVE_G (default 4) GB, up to CAPMEM_WAIT_S (default 600) s,
+# else exit 75 without running. ponytail: checked once at start; concurrent starts can still overcommit, heavy.lock covers the big ones.
+cap_k=$(awk -v c="$cap" 'BEGIN{n=c+0; u=toupper(substr(c,length(c))); m=(u=="G")?1048576:(u=="M")?1024:(u=="K")?1:1/1024; print int(n*m)}')
+need_k=$(( cap_k + ${CAPMEM_RESERVE_G:-4} * 1048576 )) waited=0
+until [ "$(awk '/^MemAvailable/{print $2}' /proc/meminfo)" -ge "$need_k" ]; do
+  [ "$waited" -ge "${CAPMEM_WAIT_S:-600}" ] && { echo "capmem: not enough free memory for -m $cap (+${CAPMEM_RESERVE_G:-4}G reserve) after ${waited}s, not started" >&2; exit 75; }
+  [ "$waited" = 0 ] && echo "capmem: waiting for $cap + ${CAPMEM_RESERVE_G:-4}G free..." >&2
+  sleep 10; waited=$((waited+10))
+done
 exec systemd-run --user --scope --quiet -p MemoryMax="$cap" -p MemorySwapMax=0 -p RuntimeMaxSec="$t" "$@"
