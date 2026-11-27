@@ -10,6 +10,7 @@ Volume first: collector back on, all 5 slots used, 3 Sonnet lanes + automatic so
 | Date | Points | Rank | Note |
 |---|---|---|---|
 | 2026-11-27 03:50 | 236 (9 units, all 25 Nov) | 176 / 950 | start of autonomous mode |
+| 2026-11-27 07:00 | 236 | - | hard search bet 17390: 0 (undecided); auto slots: 0 submitted (night units recycled, false) |
 
 ## Entries
 
@@ -49,3 +50,6 @@ Volume first: collector back on, all 5 slots used, 3 Sonnet lanes + automatic so
 - 06:00 UTC: auto slots 04:37-05:56: 5 units (42-65 pts, all recycled one-a-side/monotone), 0 submitted: 3 rc=4 UNSAT (false), 21050 rc=2, 20213 rc=3 (8x8 rep form unknown) released while lanes idle. Asked Harness: rc=3 on auto slot -> free lane, recognise 8x8 rep + 5-input monotone truth-table form (live mode 0), check 21050 timeout. Night desk serves recycled, mostly false units; real test = next fresh wave.
 - 06:15 UTC: Harness deb82ec: AUTO-HANDOFF of rc 3 to a free lane; Fin-n variable forms (8x8) recognised; 5-input monotone truth-table family via live mode 0 (exact both ways); --is-false before lsr for 3x5/4x5/5x5 (21050 false, negation compiles); lsr 60 s, up to 4 seeds. Decision: rc 2 also handed to a free lane.
 - 06:25 UTC: Harness 1e508dc/bb81d2f: rc 2/3 on auto slot -> free lane (AUTO-HANDOFF); unit already on main -> rc 5, released. Master restarting collector.
+- 06:35 UTC: rule conflict settled: rc 2 of any family (RepSizeAtMost included) -> free lane via AUTO-HANDOFF; immediate release only for rc 4 (false) and rc 5 (on main). L-meta-21143 had been released by hand before this.
+- 07:00 UTC: Research-next final on L-meta-17390: undecided after 3 h (2 real cubes open, Cirbo timeout 9000 s; no generic method even finds the known 14). Session deleted. Hard-search lever: 0 points, ~3 h x 6 cores; paused (needs a structural idea, not more SAT). Cores 0-13 back to autosolve/lanes.
+- 07:10 UTC: Harness 6b19151/a121abf/cfe7a9b (cube.py skips unit-propagated vars)/1d645d9 (SLOTS_RANGE 0-13 default). Lanes told 0-13. Rule: when a Research takes 8-13, Master restarts with SLOTS_RANGE=0-7 and lanes export 0-7.
