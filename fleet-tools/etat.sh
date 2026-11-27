@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Read-only snapshot of the fleet for /etat: collector, held units, today's PRs and points, outcomes, machine.
 # Usage: fleet-tools/etat.sh [YYYY-MM-DD]   (default: today, UTC). Changes nothing, takes no lease.
-cd "$(dirname "$0")/.." || exit 1          # harness/
+cd "$(dirname "$(readlink -f "$0")")/.." || exit 1   # harness/, also when called through penp/fleet-tools
 L=master/leases
 DAY=${1:-$(date -u +%F)}
 pts() { python3 -I -c 'import json,sys
