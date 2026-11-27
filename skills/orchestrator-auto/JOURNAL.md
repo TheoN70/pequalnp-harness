@@ -92,3 +92,4 @@ PAUSED by the owner at 07:56 UTC on 2026-11-27 (collector off, lanes closed, lan
 - 2026-11-27 17:31 UTC: normal released L-meta-27198 and normal3 L-meta-27748 out_of_time (12-gate CEGAR undecided at the cap); both refilled by AUTO-HANDOFF within seconds (27192, L-pcx-342). All 6 lanes busy, 4 merged + 5 open PRs today. Long-true queue still waits for the end of the wave.
 - 2026-11-27 17:33 UTC: note: the entries above stamped 17:40/17:50/18:30 'UTC' were local time (UTC+1); real UTC is one hour earlier.
 - 2026-11-27 17:33 UTC: Normal6 proved L-meta-27607 (PM3, true) → #41624; lane refilled with L-meta-27624. 10 PRs since 16:05.
+- 2026-11-27 17:36 UTC: 27624 false (normal6), twin 27625 held elsewhere (UNIT-REFUSED). 27332 false by read counting (normal3, route 0 in pm3/HOWTO.md), twin has another's PR. L-pcx-342 waits on L-pcx-341 (held elsewhere).
