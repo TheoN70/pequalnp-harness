@@ -8,7 +8,7 @@
 # capmem, at most AUTOSOLVE_S seconds (120; past it the lane takes over); circuit2lean.py; tools/pnp.sh check; tools/pnp.sh submit (PNP_MODEL set).
 # --dry: compile the file with `lake build <module>` instead of check + submit, then restore the worktree (for tests).
 # Exit 0 submitted (or compiled, --dry); 1 Lean check or submit failed; 2 no circuit found (time out, no free core or
-# worktree, unit already on main); 3 family not recognised; 4 circsat UNSAT: no circuit within the bound (statement false).
+# worktree); 3 family not recognised; 4 circsat UNSAT: no circuit within the bound (statement false); 5 unit already on main.
 # ponytail: a named worktree waits for its lock (30 min); the default pool takes a free one or exits 2 when all are busy.
 set -u
 T=$(dirname "$(readlink -f "$0")"); PENP=$(dirname "$(dirname "$T")")
@@ -30,7 +30,7 @@ git -C "$wt" checkout -q -f --detach upstream/main || exit 1
 git -C "$wt" clean -fdq lean/PEqualNP/Outside   # skeletons left by an earlier failed unit
 read -r id file mod < <(python3 -I -c 'import json,sys; g=json.load(open(sys.argv[1]))["gap"]; print(g["id"], g["file"], g["module"])' "$lease") || exit 3
 out=$(python3 -I "$T/take_lease.py" "$lease" "$wt") || exit 1
-case $out in *"ALREADY EXISTED"*) [ -z "$dry" ] && { echo "$id is already on main" >&2; exit 2; } ;; esac
+case $out in *"ALREADY EXISTED"*) [ -z "$dry" ] && { echo "$id is already on main" >&2; exit 5; } ;; esac
 w=0; until core=$("$T/slots" 1 2>/dev/null); do   # a full machine (Research) gets CORE_WAIT_S (60) s to free a core
   w=$((w + 2)); [ $w -ge "${CORE_WAIT_S:-60}" ] && { echo "no free core in ${CORE_WAIT_S:-60} s" >&2; exit 2; }; sleep 2; done
 timeout "${AUTOSOLVE_S:-120}" taskset -c "$core" "$T/capmem" -m 4G "$T/sat-venv/bin/python" -I "$T/autosolve.py" "$lease" "$wt/.pnp/$id.circuit.json"
