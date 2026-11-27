@@ -48,3 +48,4 @@ this role should act, edit this SKILL.md too. Commit both to the harness repo (`
 
 - Lease, beat, release or call `desk/next` yourself (Master), or run solvers yourself (sessions do).
 - Let all 5 slots sit idle or a held unit sit with no session on it.
+- Let a lane release a unit at triage unless it is clearly out of reach: a released unit cannot be leased back at once (desk: "not free to you now").
