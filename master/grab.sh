@@ -48,7 +48,7 @@ auto() { # $1 = lane, $2 = id
   case " $AUTO_LANES " in *" $1 "*) mode=auto;; esac
   log "AUTO-START $1 $2"
   # setsid: survives the end of a --unit / --next call; fds 8 and 9 closed so the locks stay with the collector
-  setsid bash -c 'o=$1 l=$2 i=$3 mode=$4 desk=$5
+  setsid bash -c 'o=$1 l=$2 i=$3 mode=$4 desk=$5 normal=$6
     lg() { echo "$(date -u +%H:%M:%S) $*" >> "$o/events.log"; }
     "$o/../../fleet-tools/autosolve.sh" "$o/$i.json" > "$o/auto-$i.log" 2>&1; rc=$?
     if [ $rc = 0 ]; then [ "$(cat "$o/busy-$l" 2>/dev/null)" = "$i" ] && rm -f "$o/busy-$l"; lg "AUTO-SUBMITTED $l $i"; exit; fi
@@ -59,9 +59,17 @@ auto() { # $1 = lane, $2 = id
     read -r lease lvl < <(python3 -I -c "import json,sys; d=json.load(open(sys.argv[1])); print(d[\"lease\"][\"id\"], ((d[\"lease\"].get(\"terms\") or {}).get(\"level\") or d[\"gap\"].get(\"level\") or \"-\"))" "$o/$i.json")
     [ "$mode" = auto ] || { [ "$mode" = normal ] && { [ "$lvl" = open ] || [ "$lvl" = hard ]; }; } || exit
     [ "$(cat "$o/busy-$l" 2>/dev/null)" = "$i" ] || exit   # Master already moved it on
+    # rc 3 (family autosolve does not know) on an auto slot: a free NORMAL_LANES lane takes it (Master BAILs on the
+    # LEASED line) instead of a release (Orchestrator 2026-11-27: L-meta-20213, 65 pts, released with 3 lanes free)
+    if [ "$mode" = auto ] && [ $rc = 3 ]; then
+      exec 8>"$o/manager.lock"; flock 8
+      for n in $normal; do [ -s "$o/busy-$n" ] && continue
+        echo "$i" > "$o/busy-$n"; rm -f "$o/busy-$l"; lg "AUTO-HANDOFF $l $n $i (rc=3)"; lg "LEASED $n $i $o/$i.json"; exit; done
+      exec 8>&-
+    fi
     why=other; [ $rc = 4 ] && why=statement_seems_false   # rc 4: circsat UNSAT, no circuit within the bound
     [[ "$lease" =~ ^[0-9a-f-]{36}$ ]] && curl -sS --max-time 20 -X POST "$desk/release?lease=$lease&reason=$why" >/dev/null 2>&1
-    rm -f "$o/busy-$l"; lg "AUTO-RELEASED $l $i $why (level $lvl, rc=$rc)"' _ "$OUT" "$1" "$2" "$mode" "$DESK" 9>&- 8>&- </dev/null >/dev/null 2>&1 &
+    rm -f "$o/busy-$l"; lg "AUTO-RELEASED $l $i $why (level $lvl, rc=$rc)"' _ "$OUT" "$1" "$2" "$mode" "$DESK" "$NORMAL_LANES" 9>&- 8>&- </dev/null >/dev/null 2>&1 &
 }
 if [ "${1:-}" = --unit ]; then
   id=${2:-}; shift 2 2>/dev/null; q="&gap=$id"; how=unit

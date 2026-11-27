@@ -197,7 +197,26 @@ theorem {mod} : {gap['statement'].strip()} :=
     return text
 
 
-REP = re.compile(r"PEqualNP\.Represents\.RepSizeAtMost \(fun \(u : Fin (\d+)\) \(v : Fin (\d+)\) => (.*)\) (\d+)", re.S)
+REP = re.compile(r"PEqualNP\.Represents\.RepSizeAtMost \(fun (?:\(u : Fin (\d+)\) \(v : Fin (\d+)\)|u v : Fin (\d+)) => (.*)\) (\d+)", re.S)
+# five-input-style monotone family: `∃ C, Monotone2 C ∧ C.size ≤ k ∧ ∀ x : Fin n → Bool, C.eval (List.ofFn x) = Nat.testBit T (∑ ...)`
+MONO = re.compile(r"∃ C : PEqualNP\.CircuitLowerBounds\.Circuit, PEqualNP\.MetaComplexity\.Monotone2 C ∧ C\.size ≤ (\d+) ∧ "
+                  r"∀ x : Fin (\d+) → Bool, C\.eval \(List\.ofFn x\) = Nat\.testBit (0x[0-9a-fA-F]+|\d+) "
+                  r"\(∑ i : Fin \2, if x i then 2 \^ \(i : ℕ\) else 0\)")
+
+
+def rep_parts(st):
+    """(n, m, graph body, s) of a RepSizeAtMost statement, binders `(u : Fin n) (v : Fin m)` or `u v : Fin n`; or None."""
+    mt = REP.fullmatch(st.strip())
+    if not mt:
+        return None
+    n, m = (int(mt[1]), int(mt[2])) if mt[1] else (int(mt[3]), int(mt[3]))
+    return n, m, mt[4], int(mt[5])
+
+
+def mono_parts(st):
+    """(n, table, k) of the monotone truth-table statement (MONO), or None."""
+    mt = MONO.fullmatch(st.strip())
+    return (int(mt[2]), int(mt[3], 0), int(mt[1])) if mt else None
 REP_MASK = re.compile(r"\((\d+) : ℕ\)\.testBit \((\d+) \* u\.val \+ v\.val\)")
 
 
@@ -213,10 +232,10 @@ def check_rows(c, rows):
             sys.exit(f"circuit differs from the graph on promise row {r}")
 
 
-def lean_rep(gap, c, mt):
+def lean_rep(gap, c, parts):
     """`RepSizeAtMost A s` (AND/OR only, values asked only on the n*m one-a-side inputs): circuit, `Monotone2` by cases,
     size and `Represents` by decide (n*m rows, no splitting needed)."""
-    n, m, body, k = int(mt[1]), int(mt[2]), mt[3], int(mt[4])
+    n, m, body, k = parts
     if any(op == "not" for op, _ in c["gates"]):
         sys.exit("RepSizeAtMost allows AND/OR only: the circuit has a NOT gate")
     check_shape(c, n + m, k)
@@ -226,6 +245,21 @@ def lean_rep(gap, c, mt):
     else:
         print("graph is not `(mask : ℕ).testBit (m * u.val + v.val)`: not checked in Python, Lean will judge",
               file=sys.stderr)
+    return lean_monotone(gap, c, f"wires 0..{n - 1} are the left vertices, {n}..{n + m - 1} the right ones, gate j makes wire {n + m} + j")
+
+
+def lean_mono(gap, c, parts):
+    """The monotone truth-table statement (MONO): AND/OR circuit checked on all 2^n rows, then as lean_rep (L-meta-16081)."""
+    n, table, k = parts
+    if any(op == "not" for op, _ in c["gates"]):
+        sys.exit("Monotone2 allows AND/OR only: the circuit has a NOT gate")
+    check_shape(c, n, k)
+    check_rows(c, [(r, bool(table >> r & 1)) for r in range(2 ** n)])
+    return lean_monotone(gap, c, f"wires 0..{n - 1} are the inputs, gate j makes wire {n} + j")
+
+
+def lean_monotone(gap, c, doc):
+    """⟨C0, Monotone2 by cases, size by decide, values by decide +kernel⟩."""
     mod, g = gap["module"], len(c["gates"])
     gl = ", ".join(f"⟨GateOp.{op}, [{', '.join(map(str, a))}]⟩" for op, a in c["gates"])
     ok = ("  intro g hg\n  simp only [C0, List.mem_cons, List.not_mem_nil, or_false] at hg\n"
@@ -236,7 +270,7 @@ namespace {mod}
 
 open PEqualNP.CircuitLowerBounds PEqualNP.MetaComplexity
 
-/-- {g} gates; wires 0..{n - 1} are the left vertices, {n}..{n + m - 1} the right ones, gate j makes wire {n + m} + j. -/
+/-- {g} gates; {doc}. -/
 def C0 : Circuit := ⟨[{gl}], {c['output']}⟩
 
 theorem ok0 : Monotone2 C0 := by
@@ -253,9 +287,12 @@ theorem {mod} : {gap['statement'].strip()} :=
 
 
 def lean(gap, c, split=None):
-    mt = REP.fullmatch(gap["statement"].strip())
+    mt = rep_parts(gap["statement"])
     if mt:
         return lean_rep(gap, c, mt)
+    mt = mono_parts(gap["statement"])
+    if mt:
+        return lean_mono(gap, c, mt)
     mt = TWO.fullmatch(gap["statement"].strip())
     if mt:
         return lean_twolit(gap, c, mt)

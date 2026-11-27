@@ -184,6 +184,9 @@ def lean_ok(text):
     import subprocess, tempfile
     lean_dir = os.path.join(HERE, "../../pequalnp-proofs/lean")
     core = subprocess.run([os.path.join(HERE, "slots"), "1"], capture_output=True, text=True)
+    own = os.sched_getaffinity(0)
+    if core.returncode and len(own) == 1:  # pinned caller (autosolve) idles while we compile: its core will do
+        core = subprocess.CompletedProcess([], 0, str(next(iter(own))), "")
     if core.returncode:
         print(f"no free core to compile ({core.stderr.strip()}): keep it", file=sys.stderr)
         return False
