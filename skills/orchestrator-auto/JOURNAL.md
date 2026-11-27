@@ -58,3 +58,11 @@ PAUSED by the owner at 07:56 UTC on 2026-11-27 (collector off, lanes closed, lan
 - 08:45 UTC: Harness 662fe68: capmem -t (default 30 min, kills the whole systemd scope); lane skill: timeout 25m per background solver, pkill on release; Research uses -t 6h / -t 0.
 - 07:56 UTC: STOP by the owner (relayed by Stratégie, confirmed in events.log): collector stopped, lanes closed, no lease held. Nothing restarts and no session is created until the owner asks.
 - Resume plan (Stratégie, upstream PRs 24-26/11): waves arrive 14-19 h UTC (peaks 17 h on 25/11, 16 h on 26/11); nights and mornings empty. Restart ~12 h UTC with lanes + auto slots ready. The overnight run only met recycled false units, so the pipeline is still untested on a fresh wave.
+
+### 2026-11-27 16:10 UTC: Reprise (new Orchestrator session)
+- Fleet restarted by the owner 16:05 UTC mid-wave (366 ordinary units offered). Collector `grab.sh 15` running (SKIP_CATS=neg, auto1..7, SLOTS_RANGE=0-13); capacity 12.
+- Found: lane sessions normal and normal3 gone while the collector filled busy-normal (L-meta-25899, 30 pts) and busy-normal3 (L-meta-25623, 36 pts); 25600 and 19144 already released "no lane session". Only Lane normal2 alive.
+- Wave content: solid prose theorems (ciphers/key schedules, rank-one outputs, affine partitions), 30-36 pts, all autosolve rc=3; "A step toward" units auto-released missing_lemma. So lanes (LLM) are the lever on this wave, not autosolve.
+- Action: started Lane normal and Lane normal3 (Sonnet, shared checkout); Master keeps both units beaten and BAILs on check-in. Master says the Owner had asked to keep normal/normal3 closed: asked the Owner session to confirm; will stop both lanes if so.
+- Asymptotic family (binary address selector / pooled OR / rematching; 25715, 25702 out_of_time): no Research, lanes release in <=5 min.
+- Score 236, rank 178/972 (unchanged since 25 Nov).
