@@ -10,7 +10,7 @@ Usage: sat-venv/bin/python -I autosolve.py <lease.json> <circuit.json>
 Exit 0: circuit written (pequalnp numbering, for circuit2lean.py); 2: no circuit of <= k gates (UNSAT); 3: family not
 recognised. The caller bounds the time (timeout) and the memory (capmem); the Lean check stays circuit2lean + pnp.sh.
 """
-import json, os, re, subprocess, sys
+import fcntl, json, os, re, subprocess, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import circsat, circuit2lean as c2l
 
@@ -88,6 +88,21 @@ def lsr(n, m, mask, k, secs):
     return {"n": n + m, "gates": gates, "output": n + m + len(gates) - 1} if "FOUND" in out and gates else None
 
 
+def sat_slot():
+    """Hold one of SAT_PAR (3) lock files while circsat runs: heavy searches stay few across parallel runs (memory).
+    Waits for a slot; the caller's timeout bounds the wait."""
+    penp = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    while True:
+        for i in range(int(os.environ.get("SAT_PAR", 3))):
+            h = open(os.path.join(penp, f"pequalnp-sat{i}.lock"), "w")
+            try:
+                fcntl.flock(h, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return h  # kept open until the process ends
+            except OSError:
+                h.close()
+        time.sleep(1)
+
+
 def fits(c, n, table, rows, no_not):
     if no_not and any(op == "not" for op, _ in c["gates"]):
         return False
@@ -109,6 +124,7 @@ def main(lease, out):
     if sk and fits(sk, n, table, rows, no_not):
         c, how = sk, "sketch" if not rep else "lsr"
     else:
+        slot = sat_slot()
         c, how = circsat.solve(n, k, table, rows, no_not), "circsat"
         if c is None:
             print(f"UNSAT: no circuit of <= {k} gates", file=sys.stderr); sys.exit(2)

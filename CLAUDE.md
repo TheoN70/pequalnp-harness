@@ -79,7 +79,7 @@ Lanes reply to `Master`; tool requests go to `Harness`.
       .claude/skills -> ../harness/skills
       .mcp.json -> harness/.mcp.json   lean-lsp MCP server (see "Lean tooling")
       pequalnp-proofs/         shared clone (origin = TheoN70 fork, upstream = open-goat); lane Hard's worktree; owns lean/.lake/packages
-      pequalnp-auto1..5/       autosolve.sh's worktrees, one per parallel run (made on first use, Mathlib packages linked)
+      pequalnp-auto1..7/       autosolve.sh's worktrees, one per parallel run (made on first use, Mathlib packages linked)
       pequalnp-normal*/        one detached worktree per lane (removed 2026-11-26 in single-problem mode: the lane skill recreates it;
                                old .pnp/ folders, kept proofs and scripts in master/backup-proofs/lanes/<lane>/)
       work/<id>/               scratch of a hard step (STATUS.md, FOUND.txt, REFUTED.txt, sub-folders per method)
@@ -114,7 +114,11 @@ Any other undocumented pequalnp.com URL stays forbidden: never probe one.
    - its `category.py` category is in `SKIP_CATS` (default `upper neg`) → `other`, logged `SKIPPED`.
 3. Otherwise it saves the desk answer to `leases/<id>.json`, writes the id into `leases/busy-<lane>`, logs `LEASED`.
    Then (every LEASED, also `--unit` / `--next`; `AUTO=0` to stop) it starts `fleet-tools/autosolve.sh` in the background:
-   `AUTO-SUBMITTED` = PR sent with no LLM, slot freed; `AUTO-FAIL rc=N` = the unit goes to its lane as below.
+   `AUTO-SUBMITTED` = PR sent with no LLM, slot freed; `AUTO-FAIL rc=N` = the unit goes to its lane as below, except
+   (`AUTO-RELEASED`, slot freed, no BAIL) on an `AUTO_LANES` slot (`auto1..auto7`: no session, autosolve only) and for an
+   `open` / `hard` unit on a `NORMAL_LANES` lane; reason `statement_seems_false` on rc 4 (circsat UNSAT), else `other`.
+   Research slots keep their unit. Leasing stops at the desk's `capacity` (read from every lease answer into
+   `leases/capacity`; 12 on 2026-11-27): non-empty busy files never exceed it.
    Master reads `events.log`, sends the lease to the lane (BAIL message).
 4. The lane installs it (`fleet-tools/take_lease.py`, or a triage script), proves it in its worktree, checks it with
    `tools/pnp.sh check`, then `tools/pnp.sh submit` (PR) or `fleet-tools/release.sh <id> <reason> [blockers]`.
@@ -139,8 +143,9 @@ Any other undocumented pequalnp.com URL stays forbidden: never probe one.
 
 | File | Meaning |
 |---|---|
-| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` / `--next` got back a unit already in a `busy-*`: kept, never released), `EMPTY` (`--next`: nothing offered, with retry_after_s), `SKIPPED-FAMILY` (`--next --skip-families`: title matches `SKIP_FAMILIES`), `AUTO-START` / `AUTO-SUBMITTED` / `AUTO-FAIL <lane> <id> rc=1|2|3` (autosolve after each LEASED; log `auto-<id>.log`), `RATE-LIMITED` (desk/stats answered 429: 60 s pause), `SKIPPED-FALSE` (`--next --skip-false-siblings`: a RepSizeAtMost sibling shown false by `rep_lower_gen.py --is-false` handed back, negation kept in `master/backup-proofs/refutes/<id>.lean`) |
+| `events.log` | `HH:MM:SS <EVENT> ...` UTC: `START`, `LEASED <lane> <id> <json>`, `RELEASED <lane> <id> <reason>`, `SKIPPED`, `CAPPED` (desk re-issued a step we hold), `RECONCILE` (held step outside known lanes, saved as `unassigned-<id>.json`), `UNBLOCKED`, `BEAT-END`, `BEAT-WITHDRAWN` (410 withdrawn: do not submit), `BEAT-ERROR`, `UNIT-REFUSED` (`--unit` not leased), `UNIT-HELD` (`--unit` / `--next` got back a unit already in a `busy-*`: kept, never released), `EMPTY` (`--next`: nothing offered, with retry_after_s), `SKIPPED-FAMILY` (`--next --skip-families`: title matches `SKIP_FAMILIES`), `AUTO-START` / `AUTO-SUBMITTED` / `AUTO-FAIL <lane> <id> rc=1|2|3` (autosolve after each LEASED; log `auto-<id>.log`), `AUTO-RELEASED <lane> <id> <reason>` (failed unit handed back, slot free), `RATE-LIMITED` (desk/stats answered 429: 60 s pause), `SKIPPED-FALSE` (`--next --skip-false-siblings`: a RepSizeAtMost sibling shown false by `rep_lower_gen.py --is-false` handed back, negation kept in `master/backup-proofs/refutes/<id>.lean`) |
 | `busy-<lane>` | lane busy; content = step id (empty after BEAT-END). Deleting it reopens the lane |
+| `capacity` | the desk's `capacity` from the last lease answer; the collector leases nothing while non-empty busy files reach it |
 | `<id>.json` | raw desk answer: `gap` (id, title, statement, file, module, imports) + `lease` (id) |
 | `last-assigned` | last lane given a step (round-robin pointer) |
 | `collector.lock`, `manager.lock` | one collector at a time; serialises lease/beat |
@@ -223,7 +228,7 @@ search), `restrict.py` (signed size of each restriction of a 6-input table, via 
 
 | Tool | Does |
 |---|---|
-| `autosolve.sh <lease.json> [worktree] [--dry]` | no-LLM solve + check + submit of a circuit unit (two-lit, `HasCircuitSize` with `x i` && \|\| ! or `Nat.testBit` body, true `RepSizeAtMost` mask, edisonhello's `upper_mono : Monotone2 upperC` family): the desk's sketch if it fits k (RepSizeAtMost: `lsr` local search, `LSR_S`=30 s), else `autosolve.py` (circsat, 1 `slots` core, capmem 4G; whole search `AUTOSOLVE_S`=120 s), `circuit2lean.py`, `pnp.sh check` + `submit` with Master's lease, in the first free of `$PENP/pequalnp-auto1..5` (up to 5 runs in parallel, flock each; all busy = exit 2). Exit 0 submitted, 1 check/submit failed, 2 no circuit / time out / on main / no worktree, 3 other family. `--dry` builds instead of submitting. Regression: merged L_meta_25350 (two-lit, circsat 10 gates) and L_meta_23657 (4x6 RepSizeAtMost <= 11: circsat > 10 min, lsr 18 s end to end) |
+| `autosolve.sh <lease.json> [worktree] [--dry]` | no-LLM solve + check + submit of a circuit unit (two-lit, `HasCircuitSize` with `x i` && \|\| ! or `Nat.testBit` body, true `RepSizeAtMost` mask, edisonhello's `upper_mono : Monotone2 upperC` family): the desk's sketch if it fits k (RepSizeAtMost: `lsr` local search, `LSR_S`=30 s), else `autosolve.py` (circsat, 1 `slots` core, capmem 4G; whole search `AUTOSOLVE_S`=120 s), `circuit2lean.py`, `pnp.sh check` + `submit` with Master's lease, in the first free of `$PENP/pequalnp-auto1..AUTO_PAR` (7 runs in parallel, flock each; all busy = exit 2; at most `SAT_PAR`=3 circsat at once; waits `CORE_WAIT_S`=60 s for a `slots` core). Exit 0 submitted, 1 check/submit failed, 2 nothing found / time out / on main / no worktree or core, 3 other family, 4 circsat UNSAT (false at the bound). `--dry` builds instead of submitting. Regression: merged L_meta_25350 (two-lit, circsat 10 gates) and L_meta_23657 (4x6 RepSizeAtMost <= 11: circsat > 10 min, lsr 18 s end to end) |
 | `take_lease.py <answer.json> <clone>` | installs a lease handed by Master like `pnp.sh next` would (checks, skeleton) |
 | `release.sh <id> <reason> [blockers]` | `pnp.sh release` + verdict line in `master/verdicts.txt` (use it instead of plain release) |
 | `n2_triage.sh <wt> <id> [json]` | one-NOT step: install, beat loop, twin state, `liveg` size, `livegpx` bound to M−2 ("none" at M−2 = negation false) |

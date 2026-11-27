@@ -28,17 +28,36 @@ DESK=${DESK:-https://pequalnp.com/desk}
 OUT=$(dirname "$(readlink -f "$0")")/leases; mkdir -p "$OUT"
 LOG="$OUT/events.log"; touch "$LOG"
 H=TheoN70
+NORMAL_LANES=${NORMAL_LANES:-normal normal2 normal3 normal4 hard normal5 normal6}   # The owner 2026-11-25 18:40: Hard takes ordinary steps
+# AUTO_LANES (Orchestrator 2026-11-27, e.g. "auto1 auto2 auto3 auto4 auto5 auto6 auto7"): slots with no session; their
+# unit goes to autosolve only and is released at once when it fails. Never more held units than the desk's `capacity`.
+AUTO_LANES=${AUTO_LANES:-}
 log() { echo "$(date -u +%H:%M:%S) $*" >> "$LOG"; }
 # After each LEASED: fleet-tools/autosolve.sh in the background (AUTO=0 to stop). Logs AUTO-START, then AUTO-SUBMITTED
 # (PR sent, lease released by submit, busy file removed: the slot is free) or AUTO-FAIL rc=1|2|3 (unit left to its lane).
 auto() { # $1 = lane, $2 = id
+  # the desk's capacity, from every lease answer (12 on 2026-11-27, "grows as your proofs are checked")
+  python3 -I -c 'import json,sys; c=json.load(open(sys.argv[1])).get("capacity"); print(int(c)) if type(c) is int and 0 < c < 1000 else sys.exit(1)' \
+    "$OUT/$2.json" > "$OUT/.cap" 2>/dev/null && mv "$OUT/.cap" "$OUT/capacity"
   [ "${AUTO:-1}" = 0 ] && return
+  # on AUTO-FAIL: an AUTO_LANES slot always releases; a NORMAL_LANES lane releases an open/hard unit (no LLM time on
+  # it, Orchestrator 2026-11-27: L-meta-10009 open blocked a lane 30 min); any other slot (research...) keeps it
+  local mode=keep
+  case " $NORMAL_LANES " in *" $1 "*) mode=normal;; esac
+  case " $AUTO_LANES " in *" $1 "*) mode=auto;; esac
   log "AUTO-START $1 $2"
   # setsid: survives the end of a --unit / --next call; fds 8 and 9 closed so the locks stay with the collector
-  setsid bash -c 'o=$1 l=$2 i=$3; "$o/../../fleet-tools/autosolve.sh" "$o/$i.json" > "$o/auto-$i.log" 2>&1; rc=$?
-    if [ $rc = 0 ]; then [ "$(cat "$o/busy-$l" 2>/dev/null)" = "$i" ] && rm -f "$o/busy-$l"; e="AUTO-SUBMITTED $l $i"
-    else e="AUTO-FAIL $l $i rc=$rc (log leases/auto-$i.log)"; fi
-    echo "$(date -u +%H:%M:%S) $e" >> "$o/events.log"' _ "$OUT" "$1" "$2" 9>&- 8>&- </dev/null >/dev/null 2>&1 &
+  setsid bash -c 'o=$1 l=$2 i=$3 mode=$4 desk=$5
+    lg() { echo "$(date -u +%H:%M:%S) $*" >> "$o/events.log"; }
+    "$o/../../fleet-tools/autosolve.sh" "$o/$i.json" > "$o/auto-$i.log" 2>&1; rc=$?
+    if [ $rc = 0 ]; then [ "$(cat "$o/busy-$l" 2>/dev/null)" = "$i" ] && rm -f "$o/busy-$l"; lg "AUTO-SUBMITTED $l $i"; exit; fi
+    lg "AUTO-FAIL $l $i rc=$rc (log leases/auto-$i.log)"
+    read -r lease lvl < <(python3 -I -c "import json,sys; d=json.load(open(sys.argv[1])); print(d[\"lease\"][\"id\"], ((d[\"lease\"].get(\"terms\") or {}).get(\"level\") or d[\"gap\"].get(\"level\") or \"-\"))" "$o/$i.json")
+    [ "$mode" = auto ] || { [ "$mode" = normal ] && { [ "$lvl" = open ] || [ "$lvl" = hard ]; }; } || exit
+    [ "$(cat "$o/busy-$l" 2>/dev/null)" = "$i" ] || exit   # Master already moved it on
+    why=other; [ $rc = 4 ] && why=statement_seems_false   # rc 4: circsat UNSAT, no circuit within the bound
+    [[ "$lease" =~ ^[0-9a-f-]{36}$ ]] && curl -sS --max-time 20 -X POST "$desk/release?lease=$lease&reason=$why" >/dev/null 2>&1
+    rm -f "$o/busy-$l"; lg "AUTO-RELEASED $l $i $why (level $lvl, rc=$rc)"' _ "$OUT" "$1" "$2" "$mode" "$DESK" 9>&- 8>&- </dev/null >/dev/null 2>&1 &
 }
 if [ "${1:-}" = --unit ]; then
   id=${2:-}; shift 2 2>/dev/null; q="&gap=$id"; how=unit
@@ -116,7 +135,7 @@ fi
 exec 9>"$OUT/collector.lock"
 flock -n 9 || { echo "collector already running" >&2; exit 0; }
 exec 8>"$OUT/manager.lock"
-N=${1:-30}; NORMAL_LANES=${NORMAL_LANES:-normal normal2 normal3 normal4 hard normal5 normal6}   # The owner 2026-11-25 18:40: Hard takes ordinary steps   # ponytail: the desk caps a handle at 5 held steps, so 4 normal + 1 hard is the max
+N=${1:-30}; LANES="$NORMAL_LANES $AUTO_LANES"   # round robin over both; capacity (leases/capacity) caps the held units
 next_normal=0; next_hard=0; hourly=$(( $(date +%s) + 3600 ))
 try_unlocked() { # $1 = lane, $2 = extra query; returns 1 when the desk had nothing for us
   [ -e "$OUT/busy-$1" ] && return 1
@@ -191,11 +210,13 @@ beat_unlocked() { # renew the lease of each busy lane; stop renewing it once the
     elif [ "$code" != 200 ]; then log "BEAT-ERROR ${b##*/busy-} $id http=$code"; fi
   done
 }
-next_free() { # round robin: first lane without a busy file, after the last one assigned
-  local last l on=
+next_free() { # round robin: first lane without a busy file, after the last one assigned; none at the desk's capacity
+  local last l on= cap
+  cap=$(cat "$OUT/capacity" 2>/dev/null)
+  [ -n "$cap" ] && [ "$(cat "$OUT"/busy-* 2>/dev/null | grep -c .)" -ge "$cap" ] && return
   last=$(cat "$OUT/last-assigned" 2>/dev/null)
-  case " $NORMAL_LANES " in *" $last "*) ;; *) on=1;; esac
-  for l in $NORMAL_LANES $NORMAL_LANES; do
+  case " $LANES " in *" $last "*) ;; *) on=1;; esac
+  for l in $LANES $LANES; do
     [ -n "$on" ] && [ ! -e "$OUT/busy-$l" ] && { echo "$l"; return; }
     [ "$l" = "$last" ] && on=1
   done

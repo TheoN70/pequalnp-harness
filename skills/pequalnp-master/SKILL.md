@@ -128,6 +128,9 @@ before the BAIL. `AUTO-SUBMITTED <lane> <id>`: PR sent, lease released, busy fil
 (outcome `submitted`, note `autosolve`) and send no BAIL. `AUTO-FAIL <lane> <id> rc=N`: relay the unit as below (rc 2 =
 no circuit within k or 2 min: say so in the BAIL; rc 3 = not a circuit family; rc 1 = Lean check or submit failed: read
 `master/leases/auto-<id>.log` first, never resubmit blindly). `AUTO=0` before `grab.sh` turns it off.
+`AUTO-RELEASED <lane> <id> <reason>`: autosolve failed and grab.sh released the unit itself (an `AUTO_LANES` slot, or an
+open/hard unit on a normal lane): record it in `results.tsv`, no BAIL, the slot is free. Run the collector with
+`AUTO_LANES="auto1 auto2 auto3 auto4 auto5 auto6 auto7"` (Orchestrator, 2026-11-27) next to `NORMAL_LANES`.
 
 **Tool event `LEASED <lane> <id> <json>`** → relay it:
 - Read the JSON (`gap.title`, `gap.statement`, `lease.expires_at`).
