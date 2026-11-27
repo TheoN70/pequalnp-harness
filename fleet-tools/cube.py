@@ -38,10 +38,28 @@ def read_cnf(path):
     return nv, nc, clauses
 
 
+def propagate(cls):
+    """Variables fixed by unit propagation from the formula's own clauses (empty set if it hits a conflict: no pruning).
+    ponytail: plain repeated passes over the clauses, fine for the few-100k-clause CNFs here; watched literals if slow."""
+    val, changed = {}, True
+    while changed:
+        changed = False
+        for c in cls:
+            if any(val.get(abs(l)) == (l > 0) for l in c):
+                continue
+            free = [l for l in c if abs(l) not in val]
+            if not free:
+                return set()
+            if len(free) == 1:
+                val[abs(free[0])] = free[0] > 0; changed = True
+    return set(val)
+
+
 def split(cnf, k, d, vars_=None):
     nv, nc, clauses = read_cnf(cnf)
-    if vars_ is None:
-        occ = Counter(abs(int(x)) for c in clauses for x in c.split()[:-1])
+    if vars_ is None:  # the most frequent variables that unit propagation leaves free (L-meta-17390: the top ones were
+        fixed = propagate([list(map(int, c.split()[:-1])) for c in clauses])  # symmetry vars fixed by units, 30/32 cubes trivial)
+        occ = Counter(abs(int(x)) for c in clauses for x in c.split()[:-1] if abs(int(x)) not in fixed)
         vars_ = [v for v, _ in occ.most_common(k)]
     if len(vars_) != k or len(set(vars_)) != k or not all(1 <= v <= nv for v in vars_):
         sys.exit(f"need {k} distinct split variables in 1..{nv}, got {vars_}")
@@ -134,6 +152,7 @@ def run(d, ncores, mem="2G", lrat=False):
 
 
 def demo(tmp):
+    assert propagate([[1], [-1, 2], [2, 3]]) == {1, 2} and propagate([[1], [-1]]) == set()  # fixed vars, conflict
     # pigeonhole 4 -> 3 (UNSAT): x(p,h) = 3p + h + 1
     x = lambda p, h: 3 * p + h + 1
     cl = [[x(p, h) for h in range(3)] for p in range(4)]
