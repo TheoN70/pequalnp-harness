@@ -53,6 +53,9 @@ auto() { # $1 = lane, $2 = id
     "$o/../../fleet-tools/autosolve.sh" "$o/$i.json" > "$o/auto-$i.log" 2>&1; rc=$?
     if [ $rc = 0 ]; then [ "$(cat "$o/busy-$l" 2>/dev/null)" = "$i" ] && rm -f "$o/busy-$l"; lg "AUTO-SUBMITTED $l $i"; exit; fi
     lg "AUTO-FAIL $l $i rc=$rc (log leases/auto-$i.log)"
+    # rc 4 (false at the bound): its Lean negation when a generator covers it, beside the release (not delaying it)
+    [ $rc = 4 ] && { r=$o/../backup-proofs/refutes; mkdir -p "$r" && "$o/../../fleet-tools/refutable.sh" "$o/$i.json" "$r/$i.lean" &&
+      lg "REFUTABLE $l $i (negation in backup-proofs/refutes/$i.lean, not compiled)"; } &
     read -r lease lvl < <(python3 -I -c "import json,sys; d=json.load(open(sys.argv[1])); print(d[\"lease\"][\"id\"], ((d[\"lease\"].get(\"terms\") or {}).get(\"level\") or d[\"gap\"].get(\"level\") or \"-\"))" "$o/$i.json")
     [ "$mode" = auto ] || { [ "$mode" = normal ] && { [ "$lvl" = open ] || [ "$lvl" = hard ]; }; } || exit
     [ "$(cat "$o/busy-$l" 2>/dev/null)" = "$i" ] || exit   # Master already moved it on
