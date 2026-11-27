@@ -59,12 +59,13 @@ auto() { # $1 = lane, $2 = id
     read -r lease lvl < <(python3 -I -c "import json,sys; d=json.load(open(sys.argv[1])); print(d[\"lease\"][\"id\"], ((d[\"lease\"].get(\"terms\") or {}).get(\"level\") or d[\"gap\"].get(\"level\") or \"-\"))" "$o/$i.json")
     [ "$mode" = auto ] || { [ "$mode" = normal ] && { [ "$lvl" = open ] || [ "$lvl" = hard ]; }; } || exit
     [ "$(cat "$o/busy-$l" 2>/dev/null)" = "$i" ] || exit   # Master already moved it on
-    # rc 3 (family autosolve does not know) on an auto slot: a free NORMAL_LANES lane takes it (Master BAILs on the
-    # LEASED line) instead of a release (Orchestrator 2026-11-27: L-meta-20213, 65 pts, released with 3 lanes free)
-    if [ "$mode" = auto ] && [ $rc = 3 ]; then
+    # rc 2 or 3 (nothing found in 2 min, or a family autosolve does not know) on an auto slot: a free NORMAL_LANES lane
+    # takes it (30 min, Master BAILs on the LEASED line) instead of a release (Orchestrator 2026-11-27: L-meta-20213,
+    # 65 pts, released with 3 lanes free)
+    if [ "$mode" = auto ] && { [ $rc = 2 ] || [ $rc = 3 ]; }; then
       exec 8>"$o/manager.lock"; flock 8
       for n in $normal; do [ -s "$o/busy-$n" ] && continue
-        echo "$i" > "$o/busy-$n"; rm -f "$o/busy-$l"; lg "AUTO-HANDOFF $l $n $i (rc=3)"; lg "LEASED $n $i $o/$i.json"; exit; done
+        echo "$i" > "$o/busy-$n"; rm -f "$o/busy-$l"; lg "AUTO-HANDOFF $l $n $i (rc=$rc)"; lg "LEASED $n $i $o/$i.json"; exit; done
       exec 8>&-
     fi
     why=other; [ $rc = 4 ] && why=statement_seems_false   # rc 4: circsat UNSAT, no circuit within the bound

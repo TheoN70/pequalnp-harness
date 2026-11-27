@@ -131,7 +131,7 @@ no circuit within k or 2 min: say so in the BAIL; rc 3 = not a circuit family; r
 `AUTO-RELEASED <lane> <id> <reason>`: autosolve failed and grab.sh released the unit itself (an `AUTO_LANES` slot, or an
 open/hard unit on a normal lane): record it in `results.tsv`, no BAIL, the slot is free. Run the collector with
 `AUTO_LANES="auto1 auto2 auto3 auto4 auto5 auto6 auto7"` (Orchestrator, 2026-11-27) next to `NORMAL_LANES`.
-`AUTO-HANDOFF <auto slot> <lane> <id>` (rc 3 on an auto slot): grab.sh moved the unit to a free normal lane and logged
+`AUTO-HANDOFF <auto slot> <lane> <id>` (rc 2 or 3 on an auto slot): grab.sh moved the unit to a free normal lane and logged
 `LEASED <lane> <id>`: BAIL it to that lane as any LEASED.
 `REFUTABLE <lane> <id>` (after an rc 4): its Lean negation, not compiled, is in `master/backup-proofs/refutes/<id>.lean`;
 note `refutable` in results.tsv. When the desk publishes its refute twin, lease it (`--unit`), compile the file and submit.
