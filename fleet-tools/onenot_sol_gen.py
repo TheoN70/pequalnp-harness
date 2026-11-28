@@ -57,7 +57,8 @@ def forms(E):
     return (nest(["(x %d && x %d)" % e for e in E], "||"), nest(["(b%d && b%d)" % e for e in E], "||"),
             nest(["(rawP.getD %d 0 &&& rawP.getD %d 0)" % e for e in E], "|||"))
 
-def lsg_witness(edges, G, secs=20, core="13"):
+def lsg_witness(edges, G, secs=20, core=None):
+    core = core or str(min(os.sched_getaffinity(0)))   # the caller's core (autosolve pins one with taskset)
     args = [str(x) for e in edges for x in e]
     o = subprocess.run(["taskset", "-c", core, os.path.join(HERE, "lsg"), str(G), "1", str(secs), str(N)] + args,
                        capture_output=True, text=True).stdout
@@ -109,7 +110,8 @@ def main15(g, E, lit, outp, clone, gates):
         sz = list(ex.map(lambda iz: bound(*iz), enumerate(Zs)))
     # one less on single-vertex restrictions: the kernel search cannot always prove their exact size (36030 proves 12 where
     # liveg gives 13 for Z = 4), and an unprovable bound costs more than 8 GB before it fails
-    sz = [v - (bin(Z).count("1") == 1) for Z, v in zip(Zs, sz)]
+    down = int(os.environ.get("SOL_DOWN", "1"))   # lower by one every bound with |Z| <= SOL_DOWN
+    sz = [v - (bin(Z).count("1") <= down) for Z, v in zip(Zs, sz)]
     rt = dict(zip(Zs, sz))
     if os.environ.get("RT_FROM"):   # test: take the bounds of a merged file (Lean source path)
         rt.update({int(z): int(l) for z, l in re.findall(r"^lemma p_(\d+) : Imp \[\] \d+ (\d+) :=", open(os.environ["RT_FROM"]).read(), re.M)})
@@ -168,6 +170,9 @@ def main():
     if not ("Fin 8 → Bool" in st and "GateOp.not → i = j" in st and m) or st.lstrip().startswith("¬"): sys.exit(3)
     lit = "[%s]" % m.group(1); L = [int(x) for x in m.group(1).split(",")]
     E = [(L[2 * k], L[2 * k + 1]) for k in range(len(L) // 2)]
+    if "--triage" in sys.argv:   # cheap, outside any lock (autosolve): exit 0 = M = 15 by lsg (15 found, 14 not), else 3
+        w15 = lsg_witness(E, 15, 30)
+        sys.exit(0 if w15 and not lsg_witness(E, 14, 30) else 3)
     if "--gates" in sys.argv:
         gates = [(o, a, b) for o, (a, b) in json.loads(sys.argv[sys.argv.index("--gates") + 1])]; M = len(gates)
     else:   # lsg first (seconds): 15 goes to the M = 15 template; 14 or less to liveg for the exact size

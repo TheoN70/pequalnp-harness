@@ -41,7 +41,9 @@ if grep -q '"title": "Table 2: for the monotone six-input' "$lease"; then   # So
 elif grep -q '"title": "At fan-in two, one NOT gate saves nothing on edges' "$lease"; then   # Sol engine, M = 14 or 15 (onenot_sol_gen.py)
   # one run at a time (onenot.lock; 7 parallel runs x liveg 2.2 GB left 4.6 GB free at 12:35 on 2026-11-28), inside capmem so its
   # liveg / lsg land in pnpfleet.slice; its Lean compile is a separate capmem 8G scope under heavy.lock
-  timeout "${ONENOT_S:-1800}" flock -n -E 75 "$PENP/master/onenot.lock" "$T/capmem" -m 5G -t 30m python3 -I "$T/onenot_sol_gen.py" "$lease" "$wt/$file"; rc=$?
+  # triage outside the lock (lsg, one core, ~1 min): only a unit at M = 15 queues for the lock (up to ONENOT_WAIT_S)
+  taskset -c "$core" "$T/capmem" -m 1G -t 5m python3 -I "$T/onenot_sol_gen.py" "$lease" /dev/null --triage || exit 3
+  timeout "${ONENOT_S:-3000}" flock -w "${ONENOT_WAIT_S:-1200}" -E 75 "$PENP/master/onenot.lock" "$T/capmem" -m 5G -t 30m python3 -I "$T/onenot_sol_gen.py" "$lease" "$wt/$file"; rc=$?
   [ $rc = 75 ] && { echo "another one-NOT run holds onenot.lock" >&2; exit 6; }   # busy: grab.sh releases an auto slot at once (no handoff)
   [ $rc = 124 ] && exit 2; [ $rc = 3 ] && exit 3; [ $rc = 0 ] || exit 2
 elif grep -qE '"title": "(On five input bits, three|Three) ordered outputs' "$lease"; then   # Normal5's template (L-meta-49912): exit 4 = unit false
