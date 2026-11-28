@@ -22,7 +22,7 @@ def install(src, root):
         os.makedirs(os.path.dirname(full), exist_ok=True)
         with open(full, "w") as f:
             f.write("import Mathlib\n" + "".join("import %s\n" % m for m in imports)
-                    + "\ntheorem %s : %s := by\n  sorry\n" % (module, g["statement"]))
+                    + "\ntheorem %s : (%s) := by\n  sorry\n" % (module, g["statement"]))
     print("STEP ", gid, "-", g.get("title", ""))
     print("FILE ", path, "(ALREADY EXISTED, not overwritten)" if existed else "(skeleton written)")
     print("LEASE", lease["id"], "until", lease.get("expires_at"))
