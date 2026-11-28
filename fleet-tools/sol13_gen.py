@@ -3,7 +3,7 @@
 larger") at AND/OR size M = 13, from willakone's merged L_meta_49521 (open-goat/pequalnp-proofs#53178), a Sol-engine
 variant with restrictions to 0 AND to 1.
 
-usage: python3 -I sol13_gen.py <lease.json> <out.lean> [--clone DIR] [--rt "Z:L,..."] [--only-rt] [--witness FILE] [--diag]
+usage: python3 -I sol13_gen.py <lease.json> <out.lean> [--clone DIR] [--rt "Z:L,..."] [--only-rt] [--witness FILE] [--diag] [--no-split]
 (sol_gen.py hands M = 13 tables here, so sol_fit.py and autosolve.sh need no change.)
 
 Only data changes; the engine, the root case split (k11t*/k12t*, unit-independent covers of the MM buckets) and every
@@ -105,6 +105,25 @@ def main():
     a = next(i for i, l in enumerate(L) if l.startswith("theorem row3g0ok ")) - 2
     b = next(i for i, l in enumerate(L) if l.startswith("lemma i1 "))
     L[a:b + 1] = oks
+    if "--no-split" not in sys.argv:   # every root case cut into the 33 MM buckets + phase 1: smaller kernel checks
+        # ponytail: uniform cut; 49521's own cuts (tuned to its table) blew 6 GB on 42388
+        P = [(1 << r, 0) for r in range(33)] + [(0, 1)]
+        ps = ", ".join("((0x%x), %d)" % p for p in P)
+        so = ["set_option maxRecDepth 100000 in", "set_option maxHeartbeats 0 in"]
+        out = []
+        for K, ts in ((11, range(0, 12)), (12, range(1, 13))):
+            for t in ts:
+                n = "k%dt%d" % (K, t)
+                for i, (h, ph) in enumerate(P):
+                    out += so + ["theorem %sc%d : chk [] rt 0 %d %d (0x%x) %d = false := by decide +kernel" % (n, i, K, t, h, ph)]
+                out += so + ["theorem %sfull : mFull [%s] = true := by decide +kernel" % (n, ps),
+                             "lemma %s : ∃ M : List (ℕ × ℕ), mFull M = true ∧ ∀ p ∈ M, chk [] rt 0 %d %d p.1 p.2 = false := by" % (n, K, t),
+                             "  refine ⟨[%s], %sfull, fun p hp => ?_⟩" % (ps, n),
+                             "  simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hp",
+                             "  rcases hp with " + " | ".join(["h"] * len(P))] + ["  · subst h; exact %sc%d" % (n, i) for i in range(len(P))]
+        a = next(i for i, l in enumerate(L) if l.startswith("theorem k11t0c0 ")) - 2
+        b = next(i for i, l in enumerate(L) if l.startswith("lemma iroot "))
+        L[a:b] = out
     src = "\n".join(L)
     hdr = ("-- Engine copied verbatim from the merged %s by willakone (open-goat/pequalnp-proofs#%s), on David Li's Sol engine;\n" % (TID, PR) +
            "-- only the instance data, cut masks, restriction bounds, target and witness are regenerated (fleet-tools/sol13_gen.py).\n")

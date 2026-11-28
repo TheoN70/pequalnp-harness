@@ -18,7 +18,7 @@ def compile_(path):
     core = arg("--core", None) or subprocess.run([os.path.join(HERE, "slots"), "1", "--range", "8-13"],
                                                  capture_output=True, text=True).stdout.strip() or "13"
     r = subprocess.run(["flock", os.path.join(PENP, "master", "heavy.lock"), "taskset", "-c", core,
-                        os.path.join(HERE, "capmem"), "-m", "6G", "-t", "25m", "lake", "env", "lean", os.path.abspath(path)],
+                        os.path.join(HERE, "capmem"), "-m", "6G", "-t", os.environ.get("SOL_FIT_T", "25m"), "lake", "env", "lean", os.path.abspath(path)],
                        cwd=os.path.join(clone, "lean"), capture_output=True, text=True)
     errs = [int(m) for m in re.findall(r"^\S+?:(\d+):\d+: error", r.stdout + r.stderr, re.M)]
     return r.returncode, errs, (r.stdout + r.stderr)[-2000:]

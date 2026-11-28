@@ -74,15 +74,36 @@ def lsg_size(edges, hi=16, secs=3, core="13"):
         else: break
     return best
 
-def compile_(path, clone, mem="6G"):   # M = 15 files peak at 6.74 GB (upstream 36030): mem="8G", still one at a time (heavy.lock)
+def compile_(path, clone, mem="6G", t="25m"):   # M = 15 files peak at 6.74 GB (upstream 36030): mem="8G", still one at a time (heavy.lock)
     core = subprocess.run([os.path.join(HERE, "slots"), "1", "--range", "8-13"], capture_output=True, text=True).stdout.strip() or "13"
     r = subprocess.run(["flock", os.path.join(PENP, "master", "heavy.lock"), "taskset", "-c", core, os.path.join(HERE, "capmem"),
-                        "-m", mem, "-t", "25m", "lake", "env", "lean", os.path.abspath(path)], cwd=os.path.join(clone, "lean"),
+                        "-m", mem, "-t", t, "lake", "env", "lean", os.path.abspath(path)], cwd=os.path.join(clone, "lean"),
                        capture_output=True, text=True)
     return r.returncode, [int(m) for m in re.findall(r"^\S+?:(\d+):\d+: error", r.stdout + r.stderr, re.M)]
 
 def flat(E, a, op):
     return (" %s " % op).join(a % e for e in E)
+
+SHARDS = [(0xfff << (12 * k), 0) for k in range(17)] + [(0xf << (12 * 17), 0), (0x3f << (12 * 17 + 4), 1)]   # covers MM = 214 buckets
+
+def sharded_floor():
+    """baseFloor (Imp [] 0 14) cut into one kernel check per (t, shard): one decide of the whole floor ran past 8 GB on
+    33565 (bisected). Same shards and combination as RobinAllenson's L-meta-52262 (#56653), here for every t < 14."""
+    opt = "set_option maxRecDepth 100000 in\nset_option maxHeartbeats 0 in\n"
+    sh = ", ".join("(0x%x,%d)" % p for p in SHARDS)
+    L = ["def fullShards : List (ℕ × ℕ) := [%s]" % sh, opt + "lemma fullShardsCover : mFull fullShards = true := by decide +kernel", "",
+         "noncomputable def baseChk (t : ℕ) (p : ℕ × ℕ) : Bool := !chk [] (pr P1 0) 0 13 t p.1 p.2"]
+    for t in range(14):
+        for k, p in enumerate(SHARDS):
+            L.append(opt + "lemma base%d_%d : baseChk %d (0x%x,%d) = true := by decide +kernel" % (t, k, t, p[0], p[1]))
+        L.append("lemma baseAll_%d : ∀ p ∈ fullShards, baseChk %d p = true := by\n  intro p hp\n"
+                 "  simp only [fullShards, List.mem_cons, List.not_mem_nil, or_false] at hp\n  rcases hp with %s\n%s"
+                 % (t, t, " | ".join(["rfl"] * len(SHARDS)), "\n".join("  · exact base%d_%d" % (t, k) for k in range(len(SHARDS)))))
+    L.append(opt + "lemma baseFloor : Imp [] 0 14 := by\n"
+             "  refine imp_of (E := []) (Q := pr P1 0) (Z := 0) (L := 14) (Or.inl rfl) (by decide +kernel) (by decide)\n"
+             "    (fun e he => P1ok e (List.mem_of_mem_filter he)) (Or.inr fun t ht => ?_)\n  interval_cases t\n" +
+             "\n".join("  · exact ⟨fullShards, fullShardsCover, fun p hp => by simpa only [baseChk, Bool.not_eq_true'] using baseAll_%d p hp⟩" % t for t in range(14)) + "\n")
+    return "\n".join(L) + "\n"
 
 def main15(g, E, lit, outp, clone, gates):
     """M = 15: template 36030; bounds start at lsg sizes of G - Z, each rejected p_Z / g_Z lowered by one (up to 6 compiles)"""
@@ -144,9 +165,27 @@ def main15(g, E, lit, outp, clone, gates):
         src = re.sub(r"HasGrade 1 \((\d+),(\d+)\) :=", lambda m: "HasGrade 1 (%s,%d) :=" % (m.group(1), rt[int(m.group(1))]), src)
         src = re.sub(r"^(def [PG][123] : List \(ℕ × ℕ\) := \[)([^\]]*)\]", lambda m: m.group(1) + ", ".join(
             "(%s, %d)" % (z, rt[int(z)]) for z in re.findall(r"\((\d+), \d+\)", m.group(2))) + "]", src, flags=re.M)
+        old_bf = ("lemma baseFloor : Imp [] 0 14 :=\n  imp_okE (e := (0,14)) (Q := pr P1 0) (Or.inl rfl) (by decide +kernel)\n"
+                  "    (fun e he => P1ok e (List.mem_of_mem_filter he))\n")
+        if os.environ.get("SOL_ONE_FLOOR") is None:
+            assert src.count(old_bf) == 1
+            src = src.replace(old_bf, sharded_floor())
         hdr = ("-- Engine and case split copied verbatim from the merged %s by NlkIas9 (open-goat/pequalnp-proofs#%s);\n"
+               "-- root floor split into shards after RobinAllenson's L-meta-52262 (open-goat/pequalnp-proofs#56653);\n"
                "-- only the instance data, restriction bounds, graph and witness are regenerated (fleet-tools/onenot_sol_gen.py).\n" % (TID15, PR15))
         return src.replace("import PEqualNP.Defs\n", "import PEqualNP.Defs\n" + hdr, 1)
+    if os.environ.get("NO_COMPILE"):   # write the file only (measurements)
+        open(outp, "w", encoding="utf-8").write(render()); print("wrote %s (not compiled)" % outp); return
+    # pre-check (Orchestrator 2026-11-28): baseFloor alone, every other heavy check `sorry`; over 8G / 10 min = this unit's floor
+    # does not fit (33565: > 8 GB unsharded), exit 3 before the long fit loop. 35422, 32301 pass at 4.4 GB.
+    fl, cur = render().split("\n"), None
+    for i, l in enumerate(fl):
+        m = re.match(r"(?:lemma|theorem) (\w+)", l); cur = m.group(1) if m else cur
+        if "decide +kernel" in l and cur and re.match(r"(p_\d+|g_\d+|case_\d+|casesCover)$", cur):
+            fl[i] = l.replace("by decide +kernel", "by sorry")
+    floorp = outp + ".floor.lean"; open(floorp, "w", encoding="utf-8").write("\n".join(fl))
+    rc, errs = compile_(floorp, clone, "8G", "10m"); os.remove(floorp)
+    if rc or errs: print("baseFloor pre-check failed (rc=%d, %d errors): floor too heavy for 8G" % (rc, len(errs)), file=sys.stderr); sys.exit(3)
     for k in range(6):
         src = render(); open(outp, "w", encoding="utf-8").write(src)
         rc, errs = compile_(outp, clone, "8G")

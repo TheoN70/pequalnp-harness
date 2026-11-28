@@ -38,7 +38,7 @@ if grep -q '"title": "Table 2: for the monotone six-input' "$lease"; then   # So
   [ $rc = 124 ] && exit 2; [ $rc = 3 ] && exit 3; [ $rc = 0 ] || exit 2
   [ -n "$dry" ] && { git -C "$wt" checkout -q -f --detach upstream/main; git -C "$wt" clean -fdq lean/PEqualNP/Outside
     echo "$id: compiles (sol_fit, dry run, not submitted)"; exit 0; }   # sol_fit already compiled this exact file
-elif [ -n "${ONENOT_SOL:-}" ] && grep -q '"title": "At fan-in two, one NOT gate saves nothing on edges' "$lease"; then   # OFF by default (ONENOT_SOL=1): M = 15 compiles were OOM-killed at 8G on live units (33565, 2026-11-28)
+elif [ "${ONENOT_SOL:-0}" = 1 ] && grep -q '"title": "At fan-in two, one NOT gate saves nothing on edges' "$lease"; then   # ON by default (ONENOT_SOL=0 to stop); M = 15: baseFloor pre-check first, exit 3 when it does not fit 8G (33565)
   # one run at a time (onenot.lock; 7 parallel runs x liveg 2.2 GB left 4.6 GB free at 12:35 on 2026-11-28), inside capmem so its
   # liveg / lsg land in pnpfleet.slice; its Lean compile is a separate capmem 8G scope under heavy.lock
   # triage outside the lock (lsg, one core, ~1 min): only a unit at M = 15 queues for the lock (up to ONENOT_WAIT_S)
