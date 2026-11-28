@@ -33,9 +33,14 @@ out=$(python3 -I "$T/take_lease.py" "$lease" "$wt") || exit 1
 case $out in *"ALREADY EXISTED"*) [ -z "$dry" ] && { echo "$id is already on main" >&2; exit 5; } ;; esac
 w=0; until core=$("$T/slots" 1 2>/dev/null); do   # a full machine (Research) gets CORE_WAIT_S (60) s to free a core
   w=$((w + 2)); [ $w -ge "${CORE_WAIT_S:-60}" ] && { echo "no free core in ${CORE_WAIT_S:-60} s" >&2; exit 2; }; sleep 2; done
+if grep -q '"title": "Three ordered outputs' "$lease"; then   # Normal5's template (L-meta-49912): exit 4 = unit false
+  timeout "${AUTOSOLVE_S:-120}" taskset -c "$core" python3 -I "$T/three_out_gen.py" "$lease" "$wt/$file"; rc=$?
+  [ $rc = 124 ] && exit 2; [ $rc = 0 ] || exit $rc
+else
 timeout "${AUTOSOLVE_S:-120}" taskset -c "$core" "$T/capmem" -m 4G "$T/sat-venv/bin/python" -I "$T/autosolve.py" "$lease" "$wt/.pnp/$id.circuit.json"
 rc=$?; [ $rc = 3 ] && exit 3; [ $rc = 2 ] && exit 4; [ $rc = 0 ] || exit 2
 python3 -I "$T/circuit2lean.py" "$lease" "$wt/.pnp/$id.circuit.json" -o "$wt/$file" || exit 1
+fi
 core=$("$T/slots" 1) || core=   # the check runs on a free core if there is one
 pin() { if [ -n "$core" ]; then taskset -c "$core" "$@"; else "$@"; fi; }
 if [ -n "$dry" ]; then
