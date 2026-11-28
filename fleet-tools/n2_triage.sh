@@ -30,8 +30,11 @@ NUM=${ID#L-meta-}; if [ "$4" = neg ]; then TW=$((NUM-1)); else TW=$((NUM+1)); fi
 for g in $ID L-meta-$TW; do curl -sS -m 10 -G https://pequalnp.com/desk/step --data-urlencode gap=$g | python3 -I -c 'import json,sys
 d=json.load(sys.stdin); print("desk", d.get("gap"), d.get("state"), "holders", d.get("holders",""), "prs", d.get("prs",""))'; done
 cd $T
-$T/capmem ./liveg $N $E 0 0 6 14 27 > "$W/.pnp/liveg-$ID.log" 2>&1; grep -E "FOUND|w[0-9]+ =" "$W/.pnp/liveg-$ID.log"
+$T/capmem ./liveg $N $E 0 0 6 14 27 > "$W/.pnp/liveg-$ID.log" 2>&1; rc=$?; grep -E "FOUND|w[0-9]+ =" "$W/.pnp/liveg-$ID.log"
 M=$(grep FOUND "$W/.pnp/liveg-$ID.log" | sed 's/N=\([0-9]*\).*/\1/')
+if [ -z "$M" ]; then  # liveg died (capmem kill rc 137/143) or no circuit up to 14: never run livegpx with negative bounds
+  echo "AND/OR M unknown: liveg rc=$rc, no FOUND up to 14 (rc 0 => M >= 15; else killed, see .pnp/liveg-$ID.log). Stop: M >= 14 is released at triage."; exit 3
+fi
 echo "AND/OR exact M=$M ; signed search (enriched universe) up to $((M-2)):"
-PTS=$PTS timeout 300 $T/capmem ./livegpx $N $E 1 1 2 $((M-3)) $((M-2)) 27 2>&1 | grep -E "^N=|too large" | cut -c1-100
+PTS=$PTS timeout 300 flock $T/../master/heavy.lock $T/capmem -m 4G ./livegpx $N $E 1 1 2 $((M-3)) $((M-2)) 27 2>&1 | grep -E "^N=|too large" | cut -c1-100
 echo "(if the line N=$((M-2)) is missing, the search hit its 300 s limit: rerun it detached with a table of 28)"
