@@ -12,6 +12,8 @@ import json, os, re, subprocess, sys
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 TID, PR, TPL_M = "L_meta_29168", "42324", 14
+TID15, PR15 = "L_meta_36030", "48070"   # NlkIas9, M = 15: all 256 rows, one lemma per restriction, root split in cases
+PENP = os.path.join(HERE, "..", "..")
 N = 8
 
 def liveg(edges, lo=0, hi=16):
@@ -25,7 +27,7 @@ def liveg(edges, lo=0, hi=16):
     gs = re.findall(r"w\d+ = (and|or) \[(\d+), (\d+)\]", o.split("FOUND", 1)[1])
     return int(m[0]), [(op, int(a), int(b)) for op, a, b in gs]
 
-def instance(E):
+def instance(E, rows="true64"):   # rows: the 64 smallest true points (29168) or all 256 points (M = 15 files)
     R = 1 << N; tv = lambda a: any(a >> i & 1 and a >> j & 1 for i, j in E)
     ones = [a for a in range(R) if tv(a)]
     mins = [a for a in ones if all(not tv(a ^ (1 << i)) for i in range(N) if a >> i & 1)]
@@ -34,7 +36,7 @@ def instance(E):
     for t in ones:
         P |= {(t, t ^ (1 << i)) for i in range(N) if t >> i & 1 and not tv(t ^ (1 << i))}
         if t in mins: P |= {(t, 0)} | {(t, f) for f in maxs}
-    co = [(r, 0, "") for r in ones[:64]]
+    co = [(r, 0, "") for r in (ones[:64] if rows == "true64" else range(R))]
     for t in sorted({t for t, _ in P}):
         co += [(t, f, "A") for (u, f) in sorted(P) if u == t]; co.append((0, 0, "x"))
     for f in sorted({f for _, f in P}):
@@ -43,7 +45,7 @@ def instance(E):
     bits = lambda cond: sum(1 << c for c, x in enumerate(co) if cond(x))
     AA = bits(lambda x: x[2] == "A")
     sp = lambda fl, start: list(zip([start] + [c for c, x in enumerate(co) if x[2] == fl][:-1], [c for c, x in enumerate(co) if x[2] == fl]))
-    segX = sp("x", 63)
+    segX = sp("x", (64 if rows == "true64" else R) - 1)
     return dict(NN=NN, AA=AA, HX=bits(lambda x: x[2] == "x"), HY=bits(lambda x: x[2] == "y"), TG=AA | bits(lambda x: x[2] == "" and tv(x[0])),
                 raw=[sum(((a >> i & 1) << c) | ((b >> i & 1) << (NN + c)) for c, (a, b, _) in enumerate(co)) for i in range(N)],
                 segX=segX, segY=sp("y", segX[-1][1]))
@@ -55,6 +57,88 @@ def forms(E):
     return (nest(["(x %d && x %d)" % e for e in E], "||"), nest(["(b%d && b%d)" % e for e in E], "||"),
             nest(["(rawP.getD %d 0 &&& rawP.getD %d 0)" % e for e in E], "|||"))
 
+def lsg_witness(edges, G, secs=20, core="13"):
+    args = [str(x) for e in edges for x in e]
+    o = subprocess.run(["taskset", "-c", core, os.path.join(HERE, "lsg"), str(G), "1", str(secs), str(N)] + args,
+                       capture_output=True, text=True).stdout
+    gs = re.findall(r"^w(\d+) = (AND|OR)\(w(\d+),w(\d+)\)", o, re.M)
+    if not gs: return None
+    assert int(gs[0][0]) == N and len(gs) == G
+    return [(op.lower(), int(a), int(b)) for _, op, a, b in gs]
+
+def lsg_size(edges, hi=16, secs=3, core="13"):
+    best = None
+    for G in range(hi, 0, -1):
+        if lsg_witness(edges, G, secs, core): best = G
+        else: break
+    return best
+
+def compile_(path, clone):
+    core = subprocess.run([os.path.join(HERE, "slots"), "1", "--range", "8-13"], capture_output=True, text=True).stdout.strip() or "13"
+    r = subprocess.run(["flock", os.path.join(PENP, "master", "heavy.lock"), "taskset", "-c", core, os.path.join(HERE, "capmem"),
+                        "-m", "6G", "-t", "25m", "lake", "env", "lean", os.path.abspath(path)], cwd=os.path.join(clone, "lean"),
+                       capture_output=True, text=True)
+    return r.returncode, [int(m) for m in re.findall(r"^\S+?:(\d+):\d+: error", r.stdout + r.stderr, re.M)]
+
+def flat(E, a, op):
+    return (" %s " % op).join(a % e for e in E)
+
+def main15(g, E, lit, outp, clone, gates):
+    """M = 15: template 36030; bounds start at lsg sizes of G - Z, each rejected p_Z / g_Z lowered by one (up to 6 compiles)"""
+    from concurrent.futures import ThreadPoolExecutor
+    Zs = [Z for Z in range(1, 256) if bin(Z).count("1") <= 3]
+    subs = {Z: [e for e in E if not (Z >> e[0] & 1 or Z >> e[1] & 1)] for Z in Zs}
+    if not all(subs.values()): print("a restriction loses every edge: not the template's 92 masks", file=sys.stderr); sys.exit(3)
+    with ThreadPoolExecutor(6) as ex:
+        sz = list(ex.map(lambda iz: lsg_size(subs[iz[1]], core=str(8 + iz[0] % 6)), enumerate(Zs)))
+    rt = dict(zip(Zs, sz))
+    I = instance(E, rows="all")
+    tpl = subprocess.run(["git", "-C", clone, "show", "upstream/main:lean/PEqualNP/Outside/%s.lean" % TID15],
+                         capture_output=True, text=True, check=True).stdout
+    oldlit = re.search(r"decide \(∃ i < \((\[[\d, ]+\]) : List ℕ\)", tpl).group(1)
+    OL = [int(x) for x in oldlit[1:-1].split(",")]; OE = [(OL[2 * k], OL[2 * k + 1]) for k in range(len(OL) // 2)]
+    sid = g["id"].replace("-", "_")
+    def render():
+        src = tpl
+        for a, op in (("(x %d && x %d)", "||"), ("(rawP.getD %d 0 &&& rawP.getD %d 0)", "|||"), ("(b%d && b%d)", "||")):
+            if flat(OE, a, op) in src: src = src.replace(flat(OE, a, op), flat(E, a, op))
+        src = src.replace(oldlit, lit).replace(TID15, sid)
+        def sub(pat, new):
+            nonlocal src
+            assert len(re.findall(pat, src, re.M)) == 1, pat
+            src = re.sub(pat, lambda _: new, src, flags=re.M)
+        h = lambda x: "0x%x" % x
+        sub(r"^def NN : Nat := \d+$", "def NN : Nat := %d" % I["NN"])
+        for k in ("AA", "HX", "HY"): sub(r"^def %s : Nat := 0x[0-9a-f]+$" % k, "def %s : Nat := %s" % (k, h(I[k])))
+        sub(r"^def TG : ℕ := 0x[0-9a-f]+$", "def TG : ℕ := %s" % h(I["TG"]))
+        sub(r"^def rawP : List ℕ := \[.*\]$", "def rawP : List ℕ := [%s]" % ", ".join(h(w) for w in I["raw"]))
+        sub(r"^def segsX : List \(ℕ × ℕ\) := .*$", "def segsX : List (ℕ × ℕ) := %s" % str(I["segX"]))
+        sub(r"^def segsY : List \(ℕ × ℕ\) := .*$", "def segsY : List (ℕ × ℕ) := %s" % str(I["segY"]))
+        sub(r"^def CC : List PEqualNP\.CircuitLowerBounds\.Gate := .*$",
+            "def CC : List PEqualNP.CircuitLowerBounds.Gate := [%s]" % ", ".join("⟨.%s, [%d, %d]⟩" % gg for gg in gates))
+        src = re.sub(r"Imp \[\] (\d+) (\d+) :=", lambda m: "Imp [] %s %d :=" % (m.group(1), rt[int(m.group(1))]) if int(m.group(1)) in rt else m.group(0), src)
+        src = re.sub(r"\(e := \((\d+),(\d+)\)\)", lambda m: "(e := (%s,%d))" % (m.group(1), rt[int(m.group(1))]) if int(m.group(1)) in rt else m.group(0), src)
+        src = re.sub(r"HasGrade 1 \((\d+),(\d+)\) :=", lambda m: "HasGrade 1 (%s,%d) :=" % (m.group(1), rt[int(m.group(1))]), src)
+        src = re.sub(r"^(def [PG][123] : List \(ℕ × ℕ\) := \[)([^\]]*)\]", lambda m: m.group(1) + ", ".join(
+            "(%s, %d)" % (z, rt[int(z)]) for z in re.findall(r"\((\d+), \d+\)", m.group(2))) + "]", src, flags=re.M)
+        hdr = ("-- Engine and case split copied verbatim from the merged %s by NlkIas9 (open-goat/pequalnp-proofs#%s);\n"
+               "-- only the instance data, restriction bounds, graph and witness are regenerated (fleet-tools/onenot_sol_gen.py).\n" % (TID15, PR15))
+        return src.replace("import PEqualNP.Defs\n", "import PEqualNP.Defs\n" + hdr, 1)
+    for k in range(6):
+        src = render(); open(outp, "w", encoding="utf-8").write(src)
+        rc, errs = compile_(outp, clone)
+        lines = src.split("\n"); bad = set()
+        for e in errs:
+            z = next((int(m.group(1)) for l in reversed(lines[:e]) for m in [re.match(r"lemma [pg]_(\d+) :", l)] if m), None)
+            if z is None or z not in rt: print("error at line %d outside a restriction lemma" % e, file=sys.stderr); sys.exit(2)
+            bad.add(z)
+        print("try %d: rc=%d, %d errors, lowered %s" % (k, rc, len(errs), sorted(bad)), flush=True)
+        if rc and not errs: print("compile killed (rc=%d: 137 = over capmem 6G, 143 = SIGTERM), not a proof error" % rc, file=sys.stderr); sys.exit(2)
+        if rc == 0 and not errs:
+            print("wrote %s: NN=%d, M=15 (compiled), %d bytes" % (outp, I["NN"], len(src.encode()))); return
+        for z in bad: rt[z] -= 1
+    sys.exit(2)
+
 def main():
     leasep, outp = sys.argv[1:3]
     clone = sys.argv[sys.argv.index("--clone") + 1] if "--clone" in sys.argv else os.path.join(HERE, "..", "..", "pequalnp-proofs")
@@ -65,9 +149,15 @@ def main():
     E = [(L[2 * k], L[2 * k + 1]) for k in range(len(L) // 2)]
     if "--gates" in sys.argv:
         gates = [(o, a, b) for o, (a, b) in json.loads(sys.argv[sys.argv.index("--gates") + 1])]; M = len(gates)
-    else:
-        M, gates = liveg(E)
-    if M != TPL_M: print("M = %s; the template proves M = %d only" % (M, TPL_M), file=sys.stderr); sys.exit(3)
+    else:   # lsg first (seconds): 15 goes to the M = 15 template; 14 or less to liveg for the exact size
+        M = 16 if lsg_witness(E, 16, 10) else None
+        for G in (15, 14):
+            w = lsg_witness(E, G, 30)
+            if not w: break
+            M, gates = G, w
+        if M != 15: M, gates = liveg(E)
+    if M == 15: return main15(g, E, lit, outp, clone, gates)
+    if M != TPL_M: print("M = %s; templates prove M = 14 or 15 only" % M, file=sys.stderr); sys.exit(3)
     rt = {}
     for Z in range(1, 256):
         sub = [e for e in E if not (Z >> e[0] & 1 or Z >> e[1] & 1)]
