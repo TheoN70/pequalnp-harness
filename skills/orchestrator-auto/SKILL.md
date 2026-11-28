@@ -34,6 +34,10 @@ around; the harness repo is public (no secrets); `capmem` on every heavy command
    (~30 min), quick release of what is not tractable.
 2. **Automatic solvers** for recurring families (two-lit, HasCircuitSize, true RepSizeAtMost): a lease is solved,
    checked and submitted by a script in minutes, with no LLM. Every family seen twice is a candidate tool for Harness.
+   **Industrialise at the first PR** (owner, 2026-11-28, from Zigler's ~65 PRs/h): the moment a lane's first PR of a
+   family that autosolve does not cover exists, send it to Harness2 as the template for a generator wired desk → PR;
+   lanes keep proving that family by hand meanwhile. Don't wait for a merge or for several hand proofs (three-out lost
+   ~1h30 that way).
 3. **Hard search units** (100+ pts): only as a side bet on cores 8-13 (then Master restarts with `SLOTS_RANGE=0-7` and lanes export it; default is 0-13), one Research session, with a time limit.
 4. Cuts / reductions (1/4 price) when the desk offers nothing else.
 5. Refute twins: a false unit pays only through its `refute` twin with a Lean negation (`rep_lower_gen.py`, `lrat/lower.sh`); events `REFUTABLE <id>`, Master leases the twin with `--proof`.
