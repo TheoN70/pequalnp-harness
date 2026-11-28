@@ -60,6 +60,7 @@ The fleet-mode text below (lanes, auto-releases, grants) stays valid for when th
 | **Orchestrator** (was Analyzer) | `/orchestrator` | manages the research sessions: picks steps and families, starts one Research session per hard step, shares CPU between them, turns their reports into priorities and tool requests | leases, runs subagents or solvers, verifies proofs |
 | **Harness** | `/harness` | builds, tests and versions the tools in this repo | solves or leases steps |
 | **Research** (`Research-<id>`) | `/pequalnp-hard <id>` | attacks one hard step with parallel subagents in `work/<id>/`, owns their load, verifies every result, asks Master for the lease, reports to Orchestrator | leases itself |
+| **Scout** | `/scout` | compares the fleet with the top handles (families, engines, proof structure, speed, races lost) and proposes at most 3 evidenced improvements per report to the Orchestrator; notes in `work/scout/FINDINGS.md` | leases, builds tools, edits generators, orders |
 
 Sessions talk with `ListAgents` / `SendMessage` (address = session name). Messages are prefixed `<From> → <To> :`.
 Lanes reply to `Master`; tool requests go to `Harness`.
@@ -71,7 +72,7 @@ Lanes reply to `Master`; tool requests go to `Harness`.
         CLAUDE.md              this file
         master/                grab.sh, twin_merged.py, join-<date>.txt (+ run state, gitignored)
         fleet-tools/           search tools, generators, lane helpers, playbook README.md, Makefile
-        skills/                pequalnp-master, pequalnp-lane, pequalnp-hard, harness, orchestrator, orchestrator-auto
+        skills/                pequalnp-master, pequalnp-lane, pequalnp-hard, harness, orchestrator, orchestrator-auto, scout, etat
         dashboard/             local live dashboard (serve.py + index.html)
       CLAUDE.md -> harness/CLAUDE.md
       master -> harness/master             the skills and lanes use these paths
