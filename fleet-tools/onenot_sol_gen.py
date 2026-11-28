@@ -73,10 +73,10 @@ def lsg_size(edges, hi=16, secs=3, core="13"):
         else: break
     return best
 
-def compile_(path, clone):
+def compile_(path, clone, mem="6G"):   # M = 15 files peak at 6.74 GB (upstream 36030): mem="8G", still one at a time (heavy.lock)
     core = subprocess.run([os.path.join(HERE, "slots"), "1", "--range", "8-13"], capture_output=True, text=True).stdout.strip() or "13"
     r = subprocess.run(["flock", os.path.join(PENP, "master", "heavy.lock"), "taskset", "-c", core, os.path.join(HERE, "capmem"),
-                        "-m", "6G", "-t", "25m", "lake", "env", "lean", os.path.abspath(path)], cwd=os.path.join(clone, "lean"),
+                        "-m", mem, "-t", "25m", "lake", "env", "lean", os.path.abspath(path)], cwd=os.path.join(clone, "lean"),
                        capture_output=True, text=True)
     return r.returncode, [int(m) for m in re.findall(r"^\S+?:(\d+):\d+: error", r.stdout + r.stderr, re.M)]
 
@@ -89,9 +89,30 @@ def main15(g, E, lit, outp, clone, gates):
     Zs = [Z for Z in range(1, 256) if bin(Z).count("1") <= 3]
     subs = {Z: [e for e in E if not (Z >> e[0] & 1 or Z >> e[1] & 1)] for Z in Zs}
     if not all(subs.values()): print("a restriction loses every edge: not the template's 92 masks", file=sys.stderr); sys.exit(3)
+    def bound(i, Z):   # an overshoot makes its okE check search until it runs out of memory (36030: OOM at 8G), so
+        core = str(8 + i % 6)   # exact liveg when it ends in 20 s, else the best of two lsg seeds at 10 s per level
+        es = ",".join("%d-%d" % e for e in subs[Z])
+        try:
+            o = subprocess.run(["taskset", "-c", core, os.path.join(HERE, "liveg"), str(N), es, "0", "0", "0", "16", "26"],
+                               capture_output=True, text=True, timeout=20).stdout
+            m = re.findall(r"N=(\d+) FOUND", o)
+            if m: return int(m[0])
+        except subprocess.TimeoutExpired: pass
+        best = lsg_size(subs[Z], secs=10, core=core)
+        for G in range(best - 1, 0, -1):
+            o = subprocess.run(["taskset", "-c", core, os.path.join(HERE, "lsg"), str(G), "2", "10", str(N)] + [str(x) for e in subs[Z] for x in e],
+                               capture_output=True, text=True).stdout
+            if re.search(r"^w\d+ =", o, re.M): best = G
+            else: break
+        return best
     with ThreadPoolExecutor(6) as ex:
-        sz = list(ex.map(lambda iz: lsg_size(subs[iz[1]], core=str(8 + iz[0] % 6)), enumerate(Zs)))
+        sz = list(ex.map(lambda iz: bound(*iz), enumerate(Zs)))
+    # one less on single-vertex restrictions: the kernel search cannot always prove their exact size (36030 proves 12 where
+    # liveg gives 13 for Z = 4), and an unprovable bound costs more than 8 GB before it fails
+    sz = [v - (bin(Z).count("1") == 1) for Z, v in zip(Zs, sz)]
     rt = dict(zip(Zs, sz))
+    if os.environ.get("RT_FROM"):   # test: take the bounds of a merged file (Lean source path)
+        rt.update({int(z): int(l) for z, l in re.findall(r"^lemma p_(\d+) : Imp \[\] \d+ (\d+) :=", open(os.environ["RT_FROM"]).read(), re.M)})
     I = instance(E, rows="all")
     tpl = subprocess.run(["git", "-C", clone, "show", "upstream/main:lean/PEqualNP/Outside/%s.lean" % TID15],
                          capture_output=True, text=True, check=True).stdout
@@ -126,7 +147,7 @@ def main15(g, E, lit, outp, clone, gates):
         return src.replace("import PEqualNP.Defs\n", "import PEqualNP.Defs\n" + hdr, 1)
     for k in range(6):
         src = render(); open(outp, "w", encoding="utf-8").write(src)
-        rc, errs = compile_(outp, clone)
+        rc, errs = compile_(outp, clone, "8G")
         lines = src.split("\n"); bad = set()
         for e in errs:
             z = next((int(m.group(1)) for l in reversed(lines[:e]) for m in [re.match(r"lemma [pg]_(\d+) :", l)] if m), None)

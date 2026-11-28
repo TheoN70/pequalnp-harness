@@ -38,6 +38,9 @@ if grep -q '"title": "Table 2: for the monotone six-input' "$lease"; then   # So
   [ $rc = 124 ] && exit 2; [ $rc = 3 ] && exit 3; [ $rc = 0 ] || exit 2
   [ -n "$dry" ] && { git -C "$wt" checkout -q -f --detach upstream/main; git -C "$wt" clean -fdq lean/PEqualNP/Outside
     echo "$id: compiles (sol_fit, dry run, not submitted)"; exit 0; }   # sol_fit already compiled this exact file
+elif grep -q '"title": "At fan-in two, one NOT gate saves nothing on edges' "$lease"; then   # Sol engine, M = 14 or 15 (onenot_sol_gen.py)
+  timeout "${ONENOT_S:-1800}" python3 -I "$T/onenot_sol_gen.py" "$lease" "$wt/$file"; rc=$?   # M = 15: compiles itself (8G, heavy.lock)
+  [ $rc = 124 ] && exit 2; [ $rc = 3 ] && exit 3; [ $rc = 0 ] || exit 2
 elif grep -qE '"title": "(On five input bits, three|Three) ordered outputs' "$lease"; then   # Normal5's template (L-meta-49912): exit 4 = unit false
   timeout "${THREE_S:-600}" taskset -c "$core" python3 -I "$T/three_out_gen.py" "$lease" "$wt/$file"; rc=$?
   [ $rc = 3 ] && { timeout "${THREE_S:-600}" taskset -c "$core" python3 -I "$T/three_out_fit_gen.py" "$lease" "$wt/$file"; rc=$?; }   # true "fit" unit (foudres L-meta-50062)
@@ -51,11 +54,12 @@ core=$("$T/slots" 1) || core=   # the check runs on a free core if there is one
 pin() { if [ -n "$core" ]; then taskset -c "$core" "$@"; else "$@"; fi; }
 # a Sol-sized file (> 100 KB, ~4-6 GB to check) takes master/heavy.lock like the generators' compiles, so two never overlap
 # (Claude Desktop OOM-killed at 11:37 on 2026-11-28 with several unlocked 6G checks running)
+chk_m=6G; [ "$(stat -c %s "$wt/$file" 2>/dev/null || echo 0)" -gt 307200 ] && chk_m=8G   # M = 15 one-NOT files (~350 KB) peak at 6.74 GB
 [ "$(stat -c %s "$wt/$file" 2>/dev/null || echo 0)" -gt 102400 ] && pin() { if [ -n "$core" ]; then flock "$PENP/master/heavy.lock" taskset -c "$core" "$@"; else flock "$PENP/master/heavy.lock" "$@"; fi; }
 if [ -n "$dry" ]; then
-  (cd "$wt/lean" && pin "$T/capmem" -m 6G lake build "$mod"); rc=$?
+  (cd "$wt/lean" && pin "$T/capmem" -m "$chk_m" lake build "$mod"); rc=$?
   git -C "$wt" checkout -q -f --detach upstream/main; git -C "$wt" clean -fdq lean/PEqualNP/Outside
   [ $rc = 0 ] && echo "$id: compiles (dry run, not submitted)"; exit $(( rc ? 1 : 0 ))
 fi
-(cd "$wt" && pin "$T/capmem" -m 6G tools/pnp.sh check "$id" && tools/pnp.sh submit "$id") || exit 1
+(cd "$wt" && pin "$T/capmem" -m "$chk_m" tools/pnp.sh check "$id" && tools/pnp.sh submit "$id") || exit 1
 git -C "$wt" checkout -q -f --detach upstream/main
