@@ -228,6 +228,19 @@ beat_unlocked() { # renew the lease of each busy lane; stop renewing it once the
     elif [ "$code" != 200 ]; then log "BEAT-ERROR ${b##*/busy-} $id http=$code"; fi
   done
 }
+orphans_unlocked() { # an auto slot whose autosolve died (killed at 04:50 on 2026-11-28: 5 slots beaten 2.5 h, nobody
+  # working): busy file older than 10 min and no autosolve.sh for its unit -> a free NORMAL_LANES lane takes it, else released
+  local s b id n lease
+  for s in $AUTO_LANES; do b=$OUT/busy-$s; [ -s "$b" ] || continue; id=$(cat "$b")
+    [ -n "$(find "$b" -mmin +10)" ] && ! pgrep -f "autosolve.sh .*$id\.json" >/dev/null || continue
+    log "AUTO-ORPHAN $s $id"
+    for n in $NORMAL_LANES; do [ -s "$OUT/busy-$n" ] && continue
+      echo "$id" > "$OUT/busy-$n"; rm -f "$b"; log "AUTO-HANDOFF $s $n $id (orphan)"; log "LEASED $n $id $OUT/$id.json"; continue 2; done
+    lease=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["lease"]["id"])' "$OUT/$id.json" 2>/dev/null)
+    [[ "$lease" =~ ^[0-9a-f-]{36}$ ]] && curl -sS --max-time 20 -X POST "$DESK/release?lease=$lease&reason=other" >/dev/null 2>&1
+    rm -f "$b"; log "AUTO-RELEASED $s $id other (orphan)"
+  done
+}
 next_free() { # round robin: first lane without a busy file, after the last one assigned; none at the desk's capacity
   local last l on= cap
   cap=$(cat "$OUT/capacity" 2>/dev/null)
@@ -244,7 +257,7 @@ next_free() { # round robin: first lane without a busy file, after the last one 
   done
 }
 try() { flock 8; try_unlocked "$@"; local rc=$?; flock -u 8; return "$rc"; }
-beat() { flock 8; beat_unlocked; flock -u 8; }
+beat() { flock 8; orphans_unlocked; beat_unlocked; flock -u 8; }
 next_beat=0
 log "START interval=${N}s"
 beat
