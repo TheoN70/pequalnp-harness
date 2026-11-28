@@ -38,8 +38,8 @@ if grep -q '"title": "Table 2: for the monotone six-input' "$lease"; then   # So
   [ $rc = 124 ] && exit 2; [ $rc = 3 ] && exit 3; [ $rc = 0 ] || exit 2
   [ -n "$dry" ] && { git -C "$wt" checkout -q -f --detach upstream/main; git -C "$wt" clean -fdq lean/PEqualNP/Outside
     echo "$id: compiles (sol_fit, dry run, not submitted)"; exit 0; }   # sol_fit already compiled this exact file
-elif grep -q '"title": "Three ordered outputs' "$lease"; then   # Normal5's template (L-meta-49912): exit 4 = unit false
-  timeout "${AUTOSOLVE_S:-120}" taskset -c "$core" python3 -I "$T/three_out_gen.py" "$lease" "$wt/$file"; rc=$?
+elif grep -qE '"title": "(On five input bits, three|Three) ordered outputs' "$lease"; then   # Normal5's template (L-meta-49912): exit 4 = unit false
+  timeout "${THREE_S:-600}" taskset -c "$core" python3 -I "$T/three_out_gen.py" "$lease" "$wt/$file"; rc=$?
   [ $rc = 124 ] && exit 2; [ $rc = 0 ] || exit $rc
 else
 timeout "${AUTOSOLVE_S:-120}" taskset -c "$core" "$T/capmem" -m 4G "$T/sat-venv/bin/python" -I "$T/autosolve.py" "$lease" "$wt/.pnp/$id.circuit.json"
