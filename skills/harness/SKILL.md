@@ -69,6 +69,7 @@ One line each: date, what happened (with the measurement), the rule. Add one whe
 
 - 2026-11-26: a generator that changes one number (the bound k) must change it everywhere the template states it: my first `rep_lower_gen.py` moved `lower`'s argument but not the final statement; only compiling a k never tried before (k=8) caught it. Test every new parameter on a case compiled end to end, not only cases that reproduce known files.
 - 2026-11-26: `open(p, 'w').write(f(open(p).read()))` empties `p` before reading it; an assertion in `f` then left CLAUDE.md at 0 bytes and lost another session's uncommitted paragraph (rebuilt from its diff). Read into a variable first; and before editing a file that holds someone else's uncommitted change, save `git diff` of it to the scratchpad.
+- 2026-11-28: `git log --diff-filter=A --name-only` over Outside/ took 112 s to map files to authors; the squash subject `L-meta-N (#PR)` gives the same from `git log --format` in 0.5 s. And a statement can hold `let x :=`: cut a theorem at its first `:=` only after masking those.
 
 ## Never
 
