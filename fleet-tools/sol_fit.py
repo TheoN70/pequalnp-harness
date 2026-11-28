@@ -26,7 +26,7 @@ def compile_(path):
 def gen(extra):
     cmd = [sys.executable, "-I", os.path.join(HERE, "sol_gen.py"), lease, out, "--clone", clone] + extra
     r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode: sys.exit(r.stderr or r.stdout)
+    if r.returncode: print(r.stderr or r.stdout, file=sys.stderr); sys.exit(r.returncode)
     print(r.stdout.strip(), flush=True)
 
 fix = {}
@@ -41,7 +41,8 @@ for k in range(tries):
     for b in bad: fix[int(b.group(1))] = max(0, int(b.group(2)) - 1)
 rtarg = ["--rt", ",".join("%d:%d" % kv for kv in fix.items())] if fix else []
 gen(rtarg)
-rc, errs, tail = compile_(out)
+if not (rc == 0 and not errs):   # the diag file compiled clean: the final one is it minus the per-entry checks
+    rc, errs, tail = compile_(out)
 print("final: rc=%d errors at lines %s" % (rc, errs), flush=True)
 if rc or errs: print(tail); sys.exit(1)
 print("OK", out, "rt fixes", fix)

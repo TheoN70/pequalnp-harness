@@ -76,11 +76,11 @@ def main():
     M, gates = live(T)
     if "--witness" in sys.argv:
         gates = [tuple(g) for g in json.load(open(sys.argv[sys.argv.index("--witness") + 1]))]; M = len(gates)
-    if M not in TEMPLATES: sys.exit("AND/OR size M = %s; templates exist for M = %s only" % (M, sorted(TEMPLATES)))
+    if M not in TEMPLATES: print("AND/OR size M = %s; templates exist for M = %s only" % (M, sorted(TEMPLATES)), file=sys.stderr); sys.exit(3)
     tid, pr = TEMPLATES[M]
     I = instance(T)
     Zs = [Z for Z in range(1, 64) if bin(Z).count("1") <= 3 and restr(T, Z) not in (0, 2 ** 64 - 1)]
-    rt = {Z: live(restr(T, Z))[0] - bin(Z).count("1") - 1 for Z in Zs}
+    rt = {Z: live(restr(T, Z))[0] - bin(Z).count("1") - 1 - (bin(Z).count("1") >= 2) for Z in Zs}   # one less from |Z| = 2: one compile instead of 3-4
     if "--rt" in sys.argv:
         for e in sys.argv[sys.argv.index("--rt") + 1].split(","):
             if e: z, l = e.split(":"); rt[int(z)] = int(l)
