@@ -49,6 +49,9 @@ python3 -I "$T/circuit2lean.py" "$lease" "$wt/.pnp/$id.circuit.json" -o "$wt/$fi
 fi
 core=$("$T/slots" 1) || core=   # the check runs on a free core if there is one
 pin() { if [ -n "$core" ]; then taskset -c "$core" "$@"; else "$@"; fi; }
+# a Sol-sized file (> 100 KB, ~4-6 GB to check) takes master/heavy.lock like the generators' compiles, so two never overlap
+# (Claude Desktop OOM-killed at 11:37 on 2026-11-28 with several unlocked 6G checks running)
+[ "$(stat -c %s "$wt/$file" 2>/dev/null || echo 0)" -gt 102400 ] && pin() { if [ -n "$core" ]; then flock "$PENP/master/heavy.lock" taskset -c "$core" "$@"; else flock "$PENP/master/heavy.lock" "$@"; fi; }
 if [ -n "$dry" ]; then
   (cd "$wt/lean" && pin "$T/capmem" -m 6G lake build "$mod"); rc=$?
   git -C "$wt" checkout -q -f --detach upstream/main; git -C "$wt" clean -fdq lean/PEqualNP/Outside
