@@ -111,7 +111,7 @@ Any other undocumented pequalnp.com URL stays forbidden: never probe one.
    - the statement uses `FoldExtra.` / `SyntacticFold.` (absent from main) → `does_not_elaborate`;
    - it is a negation refuted by its merged twin (`twin_merged.py`) → `statement_seems_false`;
    - someone else already has an open PR on it, or on its positive twin (id − 1) for a negation → `other`;
-   - its `category.py` category is in `SKIP_CATS` (default `upper neg`) → `other`, logged `SKIPPED`.
+   - its `category.py` category is in `SKIP_CATS` (default `neg` since 2026-11-28: `upper` units are autosolve families) → `other`, logged `SKIPPED`.
 3. Otherwise it saves the desk answer to `leases/<id>.json`, writes the id into `leases/busy-<lane>`, logs `LEASED`.
    Then (every LEASED, also `--unit` / `--next`; `AUTO=0` to stop) it starts `fleet-tools/autosolve.sh` in the background:
    `AUTO-SUBMITTED` = PR sent with no LLM, slot freed; `AUTO-FAIL rc=N` = the unit goes to its lane as below, except

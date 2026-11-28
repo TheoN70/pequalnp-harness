@@ -202,7 +202,7 @@ try_unlocked() { # $1 = lane, $2 = extra query; returns 1 when the desk had noth
   fi
   # The owner 2026-11-26 06:50: prioritise lower/reshape. upper (0/37 merged) and neg (0/169) go back unjudged ("other"), never to a lane.
   # ponytail: category.py title regexes; set SKIP_CATS= to lift the rule.
-  if [ -z "$why" ] && [ -z "$unblocked" ]; then cat=$(python3 -I "$(dirname "$OUT")/../fleet-tools/category.py" "$OUT/$id.json" 2>/dev/null); case " ${SKIP_CATS-upper neg} " in *" ${cat#cut/} "*) why=other; log "SKIPPED $1 $id category=$cat";; esac; fi
+  if [ -z "$why" ] && [ -z "$unblocked" ]; then cat=$(python3 -I "$(dirname "$OUT")/../fleet-tools/category.py" "$OUT/$id.json" 2>/dev/null); case " ${SKIP_CATS-neg} " in *" ${cat#cut/} "*) why=other; log "SKIPPED $1 $id category=$cat";; esac; fi
   if [ -n "$why" ]; then
     lease=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["lease"]["id"])' "$OUT/$id.json")
     curl -sS --max-time 20 -X POST "$DESK/release?lease=$lease&reason=$why" >/dev/null 2>&1
