@@ -76,6 +76,7 @@ def main():
     M, gates = live(T)
     if "--witness" in sys.argv:
         gates = [tuple(g) for g in json.load(open(sys.argv[sys.argv.index("--witness") + 1]))]; M = len(gates)
+    if M == 13: os.execv(sys.executable, [sys.executable, "-I", os.path.join(HERE, "sol13_gen.py")] + sys.argv[1:])   # willakone's 49521 engine
     if M not in TEMPLATES: print("AND/OR size M = %s; templates exist for M = %s only" % (M, sorted(TEMPLATES)), file=sys.stderr); sys.exit(3)
     tid, pr = TEMPLATES[M]
     I = instance(T)
