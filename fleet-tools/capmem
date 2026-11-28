@@ -20,4 +20,7 @@ until [ "$(awk '/^MemAvailable/{print $2}' /proc/meminfo)" -ge "$need_k" ]; do
   [ "$waited" = 0 ] && echo "capmem: waiting for $cap + ${CAPMEM_RESERVE_G:-4}G free..." >&2
   sleep 10; waited=$((waited+10))
 done
-exec systemd-run --user --scope --quiet -p MemoryMax="$cap" -p MemorySwapMax=0 -p RuntimeMaxSec="$t" "$@"
+# ponytail: one shared slice caps the whole fleet (4th global OOM 2026-11-28 11:37: per-scope caps summed past RAM);
+# runtime only, reset at reboot; CAPMEM_FLEET_MAX to change it.
+systemctl --user set-property --runtime pnpfleet.slice MemoryMax="${CAPMEM_FLEET_MAX:-20G}" MemorySwapMax=0 2>/dev/null
+exec systemd-run --user --scope --quiet --slice=pnpfleet.slice -p MemoryMax="$cap" -p MemorySwapMax=0 -p RuntimeMaxSec="$t" "$@"
