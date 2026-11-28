@@ -2,7 +2,8 @@
 // most S gates computing a function on given rows: a second method, independent of circsat's SAT encoding, to confirm
 // an UNSAT (from Research-L-meta-24473's bf6.c, generalised).
 //   bfcirc <n> <S> <table> [rows]          table: pequalnp table (hex 0x.. or decimal), bit r = f on row r, input i =
-//                                          bit i of r; rows: comma list (default all 2^n, at most 64 rows)
+//                                          bit i of r; rows: comma list (default all 2^n, at most 64 rows);
+//                                          a row "r:v" gives its value v explicitly (needed for r >= 64, table ignored there)
 //   bfcirc --two-lit <n> <mask> <S>        the two-lit statement: rows 2^i | 2^j (i <= j), value bit n*i + j of mask
 //   ... [-k K -m M]                        split: only first gates with index % M == K (run M pieces in parallel)
 // Prints the circuit (gate g makes wire n + g) and FOUND, or NONE: no circuit of <= S gates.
@@ -69,7 +70,9 @@ int main(int argc, char **argv) {
     for (int i = 0; i < N; i++) for (int j = i; j < N; j++) addrow((1ull << i) | (1ull << j), mask >> (N * i + j) & 1);
   } else if (np == 3 || np == 4) {
     N = atoi(p[0]); S = atoi(p[1]); unsigned long long tab = strtoull(p[2], 0, 0);
-    if (np == 4) { for (char *s = strtok(p[3], ","); s; s = strtok(0, ",")) { long r = atol(s); addrow(r, tab >> r & 1); } }
+    if (np == 4) { for (char *s = strtok(p[3], ","); s; s = strtok(0, ",")) { char *c = strchr(s, ':'); long r = atol(s);
+      if (!c && r >= 64) { fprintf(stderr, "row %ld >= 64: give its value as %ld:0 or %ld:1\n", r, r, r); return 2; }
+      addrow(r, c ? atoi(c + 1) & 1 : tab >> r & 1); } }
     else for (long r = 0; r < (1L << N); r++) addrow(r, tab >> r & 1);
   } else {
     fprintf(stderr, "usage: bfcirc <n> <S> <table> [rows] | bfcirc --two-lit <n> <mask> <S>  [-k K -m M]\n"); return 2;
