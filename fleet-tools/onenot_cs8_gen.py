@@ -98,6 +98,7 @@ def ga(i, c, f):
     a, b, d = good_at(i, c, f)
     return "(good_at %d %d %d (by decide +kernel))" % (a, b, d)
 
+HOIST = []
 def emit(f, v, path, plan):
     """Lean term of type Low v f."""
     k = plan[0]
@@ -105,8 +106,13 @@ def emit(f, v, path, plan):
     if k == "core":
         cols, roots = plan[1]
         m = len(roots) * (len(roots) - 1) // 2
+        # one theorem per slice (kernel memory is per declaration: a whole core-6 search in one term ran out of
+        # 8 GB on L-meta-34160); they are written before `lower` from HOIST
+        k = len(HOIST); rl = "[%s]" % ", ".join(map(str, roots))
+        for j in range(m):
+            HOIST.append("theorem core%d_s%d : CoreSearch.replaySlice %d %s %d = false := by decide +kernel" % (k, j, v - 1, rl, j))
         rep = ("(CoreSearch.replay_split (m := %d) (by decide +kernel) (by decide +kernel) "
-               "(by intro i hi; interval_cases i <;> decide +kernel))" % m) if m > 0 else "(by decide +kernel)"
+               "(by intro i hi; interval_cases i %s))" % (m, " ".join("· exact core%d_s%d" % (k, j) for j in range(m)))) if m > 0 else "(by decide +kernel)"
         return ("(CoreSearch.lower (n := %d) (f := %s) %s %s (by decide +kernel) (by decide +kernel) "
                 "(by unfold CoreSearch.Rep; decide +kernel) %s)" % (v - 1, fexpr(path), cols, roots, rep))
     if k == "two":
@@ -126,8 +132,12 @@ def ev(gates, x):
 def liveg(edges, M0=10, M1=16):
     here = os.path.dirname(os.path.abspath(__file__))
     es = ",".join("%d-%d" % e for e in edges)
-    out = subprocess.run([os.path.join(here, "liveg"), "8", es, "0", "0", str(M0), str(M1), "26"],
-                         capture_output=True, text=True).stdout
+    for tb in ("26", "27"):   # 2^26 table first, 2^27 when it gives no witness (L-meta-34160)
+        out = subprocess.run([os.path.join(here, "liveg"), "8", es, "0", "0", str(M0), str(M1), tb],
+                             capture_output=True, text=True).stdout
+        if "FOUND" in out: break
+    else:
+        sys.exit("liveg found no AND/OR witness with %d..%d gates (tables 26, 27): pass --gates" % (M0, M1))
     gs = re.findall(r"w\d+ = (and|or) \[(\d+), (\d+)\]", out.split("FOUND", 1)[1])
     return [(op, [int(a), int(b)]) for op, a, b in gs]
 
@@ -160,7 +170,8 @@ def main():
     sets = "set_option maxRecDepth 16000 in\nset_option maxHeartbeats 0 in\n"
     body = stmt[len("∀ x : Fin 8 → Bool, "):] if False else None
     rhs = re.search(r"Circuit\.eval ⟨gates, o⟩ \(List\.ofFn x\) = (decide \(.*?\)\)) →", stmt).group(1)
-    tail = (f"end CoreSearch\ndef target : F := fun x => {tgt}\n\n\n{sets}theorem lower : Low {M - 1} target := {term}\n\n"
+    hoist = "".join(sets + h + "\n\n" for h in HOIST)
+    tail = (f"end CoreSearch\ndef target : F := fun x => {tgt}\n\n\n{hoist}{sets}theorem lower : Low {M - 1} target := {term}\n\n"
             f"def witness : List Gate := [{W}]\n\n"
             "theorem witness_ok : ∀ g ∈ witness, (g.op = .and ∨ g.op = .or) ∧ g.inputs.length ≤ 2 := by\n  simp [witness]\n\n"
             f"{sets}theorem witness_eval : ∀ x : X, Circuit.eval ⟨witness, {N + M - 1}⟩ (List.ofFn x) = target x := by\n  decide +kernel\n\n"

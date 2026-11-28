@@ -154,7 +154,7 @@ Any other undocumented pequalnp.com URL stays forbidden: never probe one.
 `master/verdicts.txt`: `<id> <reason> [blocker ids]`, appended by `release.sh` under flock, read on every lease
 (no restart needed). `results.tsv` columns: `date lane session step leased_utc ended_utc outcome reason_or_pr note category`.
 
-Changing `grab.sh` needs a collector restart: `pkill -f master/grab.sh`, then `bash master/grab.sh 15` (Master does it).
+Changing `grab.sh` needs a collector restart: `pkill -f "[b]ash master/grab.sh"`, then `bash master/grab.sh 15` (Master does it).
 `HARD_STEPS=1` brings hard leasing back; `SKIP_CATS=` lifts the category filter; `PNP_MODEL` is sent to the desk.
 
 ## Tools (`fleet-tools/`)

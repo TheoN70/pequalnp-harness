@@ -46,7 +46,7 @@ Gitignored on purpose: run state (`master/leases/`, `verdicts.txt`, `mem-grants`
 6. Tell the requester in one message: path, usage, limits.
 7. Write down every optimisation lesson learned on the way (the owner, 2026-11-26): what was slow, wasted or wrong, the measurement, and the rule that avoids it. One line in **Lessons** below, in the same commit. This is how the harness improves as the project goes.
 
-Changing `grab.sh`: `bash -n` it, test any new function in the scratchpad on fake `busy-*` files, then tell Master that it must restart the collector (`pkill -f master/grab.sh`, then `bash master/grab.sh 15`). Never restart it yourself while Master is alive. Changing a skill: tell the sessions that use it, since a running session keeps the old text.
+Changing `grab.sh`: `bash -n` it, test any new function in the scratchpad on fake `busy-*` files, then tell Master that it must restart the collector (`pkill -f "[b]ash master/grab.sh"`, then `bash master/grab.sh 15`). Never restart it yourself while Master is alive. Changing a skill: tell the sessions that use it, since a running session keeps the old text.
 
 ## Publishing
 

@@ -194,7 +194,7 @@ note `refutable` in results.tsv. When the desk publishes its refute twin, lease 
 
 The Codex fleet that shared the TheoN70 handle was retired on 2026-11-26 (the owner); `grab.sh` serves Claude lanes only. A `flock` on `leases/collector.lock` allows only one collector (a second start exits "collector already running"; check `pgrep -af master/grab.sh` before restarting, and stop the running one first). A held step outside known lanes is logged `RECONCILE` and saved as `unassigned-<id>.json`.
 
-- The owner's decisions 2026-11-25 ~21:10: the collector polls every **15 s** (`bash master/grab.sh 15`, was 5 s; the desk answered 429 with two fleets), and the tool **releases unjudged (`other`) any negation ("False: …" / "It is false that …") whose positive twin (id − 1) already has someone else's open PR** — lanes only get steps that can lead to our own PR. Restarting the collector = `pkill -f master/grab.sh` then start it again (the flock allows one instance).
+- The owner's decisions 2026-11-25 ~21:10: the collector polls every **15 s** (`bash master/grab.sh 15`, was 5 s; the desk answered 429 with two fleets), and the tool **releases unjudged (`other`) any negation ("False: …" / "It is false that …") whose positive twin (id − 1) already has someone else's open PR** — lanes only get steps that can lead to our own PR. Restarting the collector = `pkill -f "[b]ash master/grab.sh"` then start it again (the flock allows one instance).
 
 ## Desk facts
 
