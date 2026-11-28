@@ -2,7 +2,10 @@
   "mcpServers": {
     "lean-lsp": {
       "command": "sh",
-      "args": ["-c", "PATH=\"$HOME/.local/bin:$PATH\" exec lean-lsp-mcp --disable-tools lean_build"]
+      "args": [
+        "-c",
+        "PATH=\"$HOME/.local/bin:$PATH\" exec systemd-run --user --scope --quiet -p MemoryMax=8G -p MemorySwapMax=0 lean-lsp-mcp --disable-tools lean_build"
+      ]
     }
   }
 }

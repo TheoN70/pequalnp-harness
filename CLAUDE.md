@@ -259,7 +259,7 @@ A new file in `fleet-tools/` appears by itself; a tool outside it is one line in
 ## Lean tooling
 
 - Lake builds go under `capmem` (a 200–280 KB proof peaks at ~5 GB: `-m 6G` with Master's grant).
-- `.mcp.json` (in this repo; `penp/.mcp.json` links to it) declares the **lean-lsp** MCP server (`lean-lsp-mcp` 0.33:
+- `.mcp.json` (in this repo; `penp/.mcp.json` links to it) declares the **lean-lsp** MCP server, run in a systemd scope capped at 8G (since 2026-11-28: an uncapped LSP worker on a big file reached 19.5 GB and OOM-killed Claude Desktop at 09:00 UTC) (`lean-lsp-mcp` 0.33:
   `uv tool install lean-lsp-mcp==0.33.0`), started through `sh` with `~/.local/bin` on `PATH` and
   `--disable-tools lean_build` so no agent rebuilds the shared clone. The agent writing Lean reads diagnostics and goals
   through it instead of full builds.
