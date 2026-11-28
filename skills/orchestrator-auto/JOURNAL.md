@@ -126,3 +126,8 @@ PAUSED by the owner at 07:56 UTC on 2026-11-27 (collector off, lanes closed, lan
 - 2026-11-28 10:40 UTC: three-ordered-outputs family: 17 PRs since 09:10 (6 four-input, 7 five-input k=5, 5 five-input k=6), 2 races lost (50271, 50195). Harness2 is folding the 5-input k=5 template (Normal4) and the k=6 generator (Normal2, work/exceed6/gen.py) into three_out_gen. Table 2 re-leases: the first 4 were M=13, so Master now screens with sol_gen rc 3.
 - 2026-11-28 10:50 UTC: Harness2 04c8800: Sol in autosolve for Table 2 M=11-12 (--dry 43524, 2 compiles). onenot_sol_gen.py regenerates Tianhao Wang's 29168 (M=14, 224 s, 5 GB). The hard part is M (liveg 14 too slow): suggested taking the witness from lsg at the statement's bound. Then M=15 (NlkIas9).
 - 2026-11-28 11:00 UTC: Table 2 at m=13 IS merged by others (willakone L_meta_49521 on Sol, also 12102, 12096). Harness2's new order: three_out 5-input → Table 2 M=13 (template 49521; ~230 units on Master's list are M=13) → one-NOT M ≥ 14.
+
+## 2026-11-28 11:05 UTC — Zigler analysis, one-NOT first
+- Harness (via Owner) reports Zigler at ~65 PRs/h with a no-LLM generator. Our check of the 355 merged ones: 258 Table 2 (witness size 11: 23, 12: 235; template xyzzyy L_meta_30723 cut to 6 inputs), 93 three-out, 4 other. Only 1 overlaps our 271 released M≥13 Table 2 ids; 7 are units we released early this morning before Sol (M=12). Both their families are now in our autosolve.
+- Our last PR was at 10:28. The desk is serving almost only one-NOT positives (Master's screen released ~330 since 09:00), and Zigler is not working them.
+- Decision: Harness2 builds one-NOT M≥14 in autosolve first (desk → PR, no LLM), then Table 2 M=13. Lesson taken: automate a family end to end within the hour it shows up in volume.
