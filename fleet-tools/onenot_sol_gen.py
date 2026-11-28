@@ -210,9 +210,10 @@ def main():
     if not ("Fin 8 → Bool" in st and "GateOp.not → i = j" in st and m) or st.lstrip().startswith("¬"): sys.exit(3)
     lit = "[%s]" % m.group(1); L = [int(x) for x in m.group(1).split(",")]
     E = [(L[2 * k], L[2 * k + 1]) for k in range(len(L) // 2)]
-    if "--triage" in sys.argv:   # cheap, outside any lock (autosolve): exit 0 = M = 15 by lsg (15 found, 14 not), else 3
-        w15 = lsg_witness(E, 15, 30)
-        sys.exit(0 if w15 and not lsg_witness(E, 14, 30) else 3)
+    if "--triage" in sys.argv:   # cheap, outside any lock (autosolve): exit 3 when lsg finds no 15 or finds 13 (no template), else 0
+        w15 = lsg_witness(E, 15, 30); w14 = w15 and lsg_witness(E, 14, 30); w13 = w14 and lsg_witness(E, 13, 30)
+        print("triage: lsg 15 %s, 14 %s, 13 %s" % (bool(w15), bool(w14), bool(w13)), file=sys.stderr)
+        sys.exit(0 if w15 and not w13 else 3)
     if "--gates" in sys.argv:
         gates = [(o, a, b) for o, (a, b) in json.loads(sys.argv[sys.argv.index("--gates") + 1])]; M = len(gates)
     else:   # lsg first (seconds): 15 goes to the M = 15 template; 14 or less to liveg for the exact size
