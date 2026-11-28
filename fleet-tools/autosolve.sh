@@ -39,7 +39,9 @@ if grep -q '"title": "Table 2: for the monotone six-input' "$lease"; then   # So
   [ -n "$dry" ] && { git -C "$wt" checkout -q -f --detach upstream/main; git -C "$wt" clean -fdq lean/PEqualNP/Outside
     echo "$id: compiles (sol_fit, dry run, not submitted)"; exit 0; }   # sol_fit already compiled this exact file
 elif grep -q '"title": "At fan-in two, one NOT gate saves nothing on edges' "$lease"; then   # Sol engine, M = 14 or 15 (onenot_sol_gen.py)
-  timeout "${ONENOT_S:-1800}" python3 -I "$T/onenot_sol_gen.py" "$lease" "$wt/$file"; rc=$?   # M = 15: compiles itself (8G, heavy.lock)
+  # one run at a time (onenot.lock; 7 parallel runs x liveg 2.2 GB left 4.6 GB free at 12:35 on 2026-11-28), inside capmem so its
+  # liveg / lsg land in pnpfleet.slice; its Lean compile is a separate capmem 8G scope under heavy.lock
+  timeout "${ONENOT_S:-1800}" flock "$PENP/master/onenot.lock" "$T/capmem" -m 5G -t 30m python3 -I "$T/onenot_sol_gen.py" "$lease" "$wt/$file"; rc=$?
   [ $rc = 124 ] && exit 2; [ $rc = 3 ] && exit 3; [ $rc = 0 ] || exit 2
 elif grep -qE '"title": "(On five input bits, three|Three) ordered outputs' "$lease"; then   # Normal5's template (L-meta-49912): exit 4 = unit false
   timeout "${THREE_S:-600}" taskset -c "$core" python3 -I "$T/three_out_gen.py" "$lease" "$wt/$file"; rc=$?

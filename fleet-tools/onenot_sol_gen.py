@@ -105,7 +105,7 @@ def main15(g, E, lit, outp, clone, gates):
             if re.search(r"^w\d+ =", o, re.M): best = G
             else: break
         return best
-    with ThreadPoolExecutor(6) as ex:
+    with ThreadPoolExecutor(2) as ex:   # liveg peaks ~2.2 GB: two at once fit the 5G scope autosolve gives this run
         sz = list(ex.map(lambda iz: bound(*iz), enumerate(Zs)))
     # one less on single-vertex restrictions: the kernel search cannot always prove their exact size (36030 proves 12 where
     # liveg gives 13 for Z = 4), and an unprovable bound costs more than 8 GB before it fails
