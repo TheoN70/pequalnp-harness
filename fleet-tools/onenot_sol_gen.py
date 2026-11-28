@@ -171,7 +171,8 @@ def main15(g, E, lit, outp, clone, gates):
             assert src.count(old_bf) == 1
             src = src.replace(old_bf, sharded_floor())
         hdr = ("-- Engine and case split copied verbatim from the merged %s by NlkIas9 (open-goat/pequalnp-proofs#%s);\n"
-               "-- root floor split into shards after RobinAllenson's L-meta-52262 (open-goat/pequalnp-proofs#56653);\n"
+               "-- root floor split into shards as in NlkIas9's merged L-meta-51780 (open-goat/pequalnp-proofs#56612)\n"
+               "-- and RobinAllenson's L-meta-52262 (open-goat/pequalnp-proofs#56653);\n"
                "-- only the instance data, restriction bounds, graph and witness are regenerated (fleet-tools/onenot_sol_gen.py).\n" % (TID15, PR15))
         return src.replace("import PEqualNP.Defs\n", "import PEqualNP.Defs\n" + hdr, 1)
     if os.environ.get("NO_COMPILE"):   # write the file only (measurements)
